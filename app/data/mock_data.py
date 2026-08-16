@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 class POI:
     poi_id: str
     name: str
-    category: str  # "사찰" | "해수욕장" | "미술관" | "카페" | "골목" | "공원" | "서원"
+    category: str  # "사찰" | "해수욕장" | "미술관" | "카페" | "골목" | "공원" | "역사문화공간"
     area_m2: float
     noise_sensitivity: float  # 문서 예시: 사찰 1.5, 해수욕장 0.8
     lat: float

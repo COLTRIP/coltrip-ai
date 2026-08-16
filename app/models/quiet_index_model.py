@@ -21,7 +21,7 @@ from sklearn.ensemble import RandomForestRegressor
 
 CATEGORY_CODES = {
     "사찰": 0, "해수욕장": 1, "미술관": 2, "골목": 3,
-    "공원": 4, "카페": 5, "서원": 6,
+    "공원": 4, "카페": 5, "역사문화공간": 6,
 }
 
 
