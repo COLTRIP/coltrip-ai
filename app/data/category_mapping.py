@@ -1,35 +1,48 @@
 from __future__ import annotations
 
-# TourAPI의 lclsSystm3(가장 세부 분류) 코드 -> 우리 AI 카테고리
-LCLS_SYSTM3_TO_CATEGORY = {
-    "HS030100": "사찰",       # 불교
-    "NA020900": "해수욕장",    # 해변, 해수욕장
-    "VE070600": "미술관",     # 미술관/화랑
-    "VE040100": "골목",       # 골목길, 문화거리
-    "FD050100": "카페",       # 카페
-    "HS010400": "역사문화공간",  # 고택
-    "HS010700": "역사문화공간",  # 사적지
-    "HS010600": "역사문화공간",  # 민속마을
+# 소분류(lclsSystm3) 특별 처리 — 해수욕장만 NA02 그룹에서 분리
+LCLS_SYSTM3_TO_CATEGORY: dict[str, str] = {
+    "NA020900": "해수욕장",
 }
 
-# lclsSystm3에 없으면, lclsSystm2 앞 4글자만 보고 폭넓게 판단
-LCLS_SYSTM2_PREFIX_TO_CATEGORY = {
-    "NA04": "공원",  # 자연공원류
-    "VE03": "공원",  # 도시공원류
+# 중분류(lclsSystm2) -> 카테고리. TourAPI 중분류명을 그대로 사용.
+LCLS_SYSTM2_TO_CATEGORY: dict[str, str] = {
+    "EX01": "전통체험",
+    "EX02": "공예체험",
+    "EX03": "농산어촌체험",
+    "EX04": "산사체험",
+    "EX05": "웰니스관광",
+    "EX06": "산업관광",
+    "EX07": "기타체험",
+    "HS01": "역사유적지",
+    "HS02": "역사유물",
+    "HS03": "종교성지",
+    "HS04": "안보관광지",
+    "NA01": "자연경관(산)",
+    "NA02": "자연경관(하천‧해양)",  # NA020900(해수욕장)만 위에서 먼저 걸러짐
+    "NA03": "자연생태",
+    "NA04": "자연공원",
+    "NA05": "기타자연관광",
+    "VE01": "랜드마크관광",
+    "VE02": "테마공원",
+    "VE03": "도시공원",
+    "VE04": "도시지역문화관광",
+    "VE05": "복합관광시설",
+    "VE06": "공연시설",
+    "VE07": "전시시설",
+    "VE08": "행사시설",
+    "VE09": "교육시설",
+    "VE12": "기타문화관광지",
+    "FD05": "카페",
 }
 
-def map_tourapi_category(
-    lcls_systm3: str = "", lcls_systm2: str = "", content_type_id: str = ""
-) -> str | None:
+
+def map_tourapi_category(lcls_systm3: str = "", lcls_systm2: str = "") -> str | None:
     """
-    TourAPI 분류 코드를 AI의 7개 카테고리 중 하나로 매핑합니다.
-    매핑 실패 시 None을 반환합니다.
+    TourAPI 분류 코드를 AI 카테고리로 매핑합니다.
+    lclsSystm3(소분류)에서 먼저 특별 처리(해수욕장)를 확인하고,
+    없으면 lclsSystm2(중분류)로 폭넓게 판단합니다.
     """
     if lcls_systm3 in LCLS_SYSTM3_TO_CATEGORY:
         return LCLS_SYSTM3_TO_CATEGORY[lcls_systm3]
-
-    prefix = lcls_systm2[:4] if lcls_systm2 else ""
-    if prefix in LCLS_SYSTM2_PREFIX_TO_CATEGORY:
-        return LCLS_SYSTM2_PREFIX_TO_CATEGORY[prefix]
-
-    return None
+    return LCLS_SYSTM2_TO_CATEGORY.get(lcls_systm2)

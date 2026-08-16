@@ -13,15 +13,9 @@ import math
 
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
-
+from app.data.category_codes import CATEGORY_CODES
 from app.config import settings
 from app.data.mock_data import POI
-
-CATEGORY_CODES = {
-    "사찰": 0, "해수욕장": 1, "미술관": 2, "골목": 3,
-    "공원": 4, "카페": 5, "역사문화공간": 6,
-}
-
 
 def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     R = 6371.0

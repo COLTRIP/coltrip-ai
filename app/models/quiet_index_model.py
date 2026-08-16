@@ -15,15 +15,9 @@
 교체하면 됩니다.
 """
 from __future__ import annotations
-
+from app.data.category_codes import CATEGORY_CODES
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
-
-CATEGORY_CODES = {
-    "사찰": 0, "해수욕장": 1, "미술관": 2, "골목": 3,
-    "공원": 4, "카페": 5, "역사문화공간": 6,
-}
-
 
 def compute_weighted_density(population: int, area_m2: float, noise_sensitivity: float) -> float:
     """기본 밀도(D = P/A)에 소음 민감도 가중치를 곱한 보정 밀도."""

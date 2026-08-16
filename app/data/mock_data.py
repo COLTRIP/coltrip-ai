@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 class POI:
     poi_id: str
     name: str
-    category: str  # "사찰" | "해수욕장" | "미술관" | "카페" | "골목" | "공원" | "역사문화공간"
+    category: str  
     area_m2: float
     noise_sensitivity: float  # 문서 예시: 사찰 1.5, 해수욕장 0.8
     lat: float
@@ -39,7 +39,7 @@ MOCK_POIS: list[POI] = [
     POI(
         poi_id="POI001",
         name="범어사",
-        category="사찰",
+        category="종교성지",
         area_m2=45000,
         noise_sensitivity=1.5,
         lat=35.2695,
@@ -65,7 +65,7 @@ MOCK_POIS: list[POI] = [
     POI(
         poi_id="POI003",
         name="F1963 미술관",
-        category="미술관",
+        category="전시시설",
         area_m2=12000,
         noise_sensitivity=1.3,
         lat=35.1823,
@@ -78,7 +78,7 @@ MOCK_POIS: list[POI] = [
     POI(
         poi_id="POI004",
         name="흰여울문화마을",
-        category="골목",
+        category="도시지역문화관광",
         area_m2=8000,
         noise_sensitivity=1.2,
         lat=35.0764,
@@ -91,7 +91,7 @@ MOCK_POIS: list[POI] = [
     POI(
         poi_id="POI005",
         name="보수동 책방골목",
-        category="골목",
+        category="도시지역문화관광",
         area_m2=6000,
         noise_sensitivity=1.1,
         lat=35.1023,
@@ -104,7 +104,7 @@ MOCK_POIS: list[POI] = [
     POI(
         poi_id="POI006",
         name="동백섬 산책로",
-        category="공원",
+        category="자연공원",
         area_m2=90000,
         noise_sensitivity=0.9,
         lat=35.1571,
