@@ -9,22 +9,13 @@
 """
 from __future__ import annotations
 
-import math
+from app.utils.geo import haversine_km
 
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
 from app.data.category_codes import CATEGORY_CODES
 from app.config import settings
 from app.data.mock_data import POI
-
-def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
-    R = 6371.0
-    p1, p2 = math.radians(lat1), math.radians(lat2)
-    dphi = math.radians(lat2 - lat1)
-    dlambda = math.radians(lng2 - lng1)
-    a = math.sin(dphi / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dlambda / 2) ** 2
-    return 2 * R * math.asin(math.sqrt(a))
-
 
 def _poi_vector(poi: POI, quiet_index: float) -> list[float]:
     """
@@ -49,7 +40,7 @@ def recommend_alternatives(
     target_quiet_index: float,
     candidates: list[tuple[POI, float]],  # (poi, quiet_index) 쌍의 리스트
     k: int = 3,
-    max_distance_km: float = 15.0,
+    max_distance_km: float = 3.0,
     distance_weight: float = 0.3,
 ) -> list[dict]:
     """
@@ -67,7 +58,7 @@ def recommend_alternatives(
         if qi <= target_quiet_index:
             # 더 한적한 곳만 추천 (문서: '고요 지수'가 높은 곳을 최우선 필터링)
             continue
-        dist_km = _haversine_km(target_poi.lat, target_poi.lng, poi.lat, poi.lng)
+        dist_km = haversine_km(target_poi.lat, target_poi.lng, poi.lat, poi.lng)
         if dist_km > max_distance_km:
             continue
         filtered.append((poi, qi, dist_km))
@@ -91,7 +82,7 @@ def recommend_alternatives(
         poi, qi, geo_dist = filtered[idx]
         vec_sim_score = 1 - (vec_dist / max_vec_dist)  # 가까울수록 1에 근접
         geo_penalty = (geo_dist / max_geo_dist) * distance_weight
-        final_score = round(vec_sim_score - geo_penalty, 3)
+        final_score = round(max(0.0, vec_sim_score - geo_penalty), 3)
         results.append({
             "poi_id": poi.poi_id,
             "name": poi.name,
