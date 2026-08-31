@@ -134,8 +134,8 @@ class RealDataLoader(BaseDataLoader):
                 lng=lng,
                 context_tags=[],
                 description="",  # TODO: detailCommon2로 별도 스크립트에서 채울 예정
-                has_indoor=False,  # TODO
-                vegetation_score=0.3,  # TODO
+                has_indoor=defaults["has_indoor"],
+                vegetation_score=defaults["vegetation_score"],
             ))
             seen_ids.add(poi_id)
 
