@@ -90,8 +90,8 @@ class RealDataLoader(BaseDataLoader):
     한국관광공사 TourAPI 기반 실제 데이터 로더.
 
     fetch_pois()는 areaBasedList2를 호출해서 poi_id/name/category/lat/lng를
-    실제 값으로 채웁니다. area_m2, noise_sensitivity, description 등은
-    아직 데이터 소스가 없어 임시 기본값으로 채워둔 상태입니다 (코드 내 TODO 참고).
+    실제 값으로 채웁니다. area_m2, description 등은 아직 데이터 소스가 없어
+    임시 기본값으로 채워둔 상태입니다 (코드 내 TODO 참고).
 
     fetch_population()은 아직 미구현 — 유동인구 데이터 소스 확정 후 구현 예정
     (지하철 시간대별 승하차, 도로 소통정보 등 조합 검토 중).
@@ -128,8 +128,6 @@ class RealDataLoader(BaseDataLoader):
                 name=item.get("title", ""),
                 category=category,
                 area_m2=10000.0,  # TODO: 상가업소정보 API 연동 전까지 임시 기본값
-                noise_sensitivity=1.0,  # TODO: 카테고리별 기본값 표 필요
-                lat=lat,
                 lng=lng,
                 context_tags=[],
                 description="",  # TODO: detailCommon2로 별도 스크립트에서 채울 예정

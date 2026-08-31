@@ -10,7 +10,6 @@ Mock 부산 관광지(POI) 데이터셋.
 - population: 실시간 인구수 (TourAPI 혼잡도 데이터 대응)
 - area_m2: 장소 면적(㎡) (공공데이터포털 상가업소정보 대응)
 - category: 장소 카테고리 코드
-- noise_sensitivity: 소음 민감도 가중치 (문서 예시: 사찰 1.5, 해수욕장 0.8)
 - context_tags: 감성 맥락 키워드 (NLP 임베딩 이전 단계의 임시 라벨)
 """
 from __future__ import annotations
@@ -24,7 +23,6 @@ class POI:
     name: str
     category: str  
     area_m2: float
-    noise_sensitivity: float  # 문서 예시: 사찰 1.5, 해수욕장 0.8
     lat: float
     lng: float
     context_tags: list[str] = field(default_factory=list)  # 참고용 라벨 (임베딩 이후에도 필터/분석용으로 남겨둠)
@@ -41,7 +39,6 @@ MOCK_POIS: list[POI] = [
         name="범어사",
         category="종교성지",
         area_m2=45000,
-        noise_sensitivity=1.5,
         lat=35.2695,
         lng=129.0808,
         context_tags=["고즈넉한", "사유", "명상", "산사"],
@@ -54,7 +51,6 @@ MOCK_POIS: list[POI] = [
         name="송정해수욕장",
         category="해수욕장",
         area_m2=180000,
-        noise_sensitivity=0.8,
         lat=35.1785,
         lng=129.1996,
         context_tags=["파도 소리", "개방감", "산책"],
@@ -67,7 +63,6 @@ MOCK_POIS: list[POI] = [
         name="F1963 미술관",
         category="전시시설",
         area_m2=12000,
-        noise_sensitivity=1.3,
         lat=35.1823,
         lng=129.0991,
         context_tags=["사유", "전시 관람", "정적인"],
@@ -80,7 +75,6 @@ MOCK_POIS: list[POI] = [
         name="흰여울문화마을",
         category="도시지역문화관광",
         area_m2=8000,
-        noise_sensitivity=1.2,
         lat=35.0764,
         lng=129.0431,
         context_tags=["고즈넉한", "바다 조망", "산책"],
@@ -93,7 +87,6 @@ MOCK_POIS: list[POI] = [
         name="보수동 책방골목",
         category="도시지역문화관광",
         area_m2=6000,
-        noise_sensitivity=1.1,
         lat=35.1023,
         lng=129.0261,
         context_tags=["고즈넉한", "독서", "레트로"],
@@ -106,7 +99,6 @@ MOCK_POIS: list[POI] = [
         name="동백섬 산책로",
         category="자연공원",
         area_m2=90000,
-        noise_sensitivity=0.9,
         lat=35.1571,
         lng=129.1522,
         context_tags=["숲", "산책", "잎소리"],
@@ -119,7 +111,6 @@ MOCK_POIS: list[POI] = [
         name="독립카페 브라운핸즈",
         category="카페",
         area_m2=900,
-        noise_sensitivity=1.0,
         lat=35.1015,
         lng=129.0303,
         context_tags=["조용한", "독서", "커피 향"],
@@ -132,7 +123,6 @@ MOCK_POIS: list[POI] = [
         name="해운대해수욕장",
         category="해수욕장",
         area_m2=220000,
-        noise_sensitivity=0.8,
         lat=35.1587,
         lng=129.1604,
         context_tags=["파도 소리", "개방감"],

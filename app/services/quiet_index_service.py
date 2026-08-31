@@ -28,7 +28,6 @@ def get_quiet_index(poi_id: str, hour: int, is_weekend: bool) -> tuple[POI, int,
         category=poi.category,
         hour=hour,
         is_weekend=is_weekend,
-        noise_sensitivity=poi.noise_sensitivity,
     )
     return poi, population, quiet_index
 
@@ -44,7 +43,6 @@ def get_all_quiet_indices(hour: int, is_weekend: bool) -> list[tuple[POI, int, f
             category=poi.category,
             hour=hour,
             is_weekend=is_weekend,
-            noise_sensitivity=poi.noise_sensitivity,
         )
         results.append((poi, population, quiet_index))
     return results

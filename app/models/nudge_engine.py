@@ -21,7 +21,7 @@ from app.models.embedding_model import get_mode_fit_vector
 def _poi_vector(poi: POI, quiet_index: float) -> list[float]:
     """
     대체지 유사도 판단에 쓰이는 벡터.
-    [고요지수, 카테고리코드, 식생점수, 소음민감도] +
+    [고요지수, 카테고리코드, 식생점수] +
     [WALK, CONTEMPLATION, CAFE_MODE, READING, CULTURE, SCENERY, EXPERIENCE] 적합도(7개)
 
     모드 적합도를 추가한 이유: 카테고리만 보면 "자연공원류"로 비슷해 보여도
@@ -32,7 +32,6 @@ def _poi_vector(poi: POI, quiet_index: float) -> list[float]:
         quiet_index,
         CATEGORY_CODES.get(poi.category, -1),
         poi.vegetation_score,
-        poi.noise_sensitivity,
     ]
     mode_fit = get_mode_fit_vector(poi.description)
     return base + mode_fit
