@@ -17,6 +17,7 @@ import httpx
 
 from app.config import settings
 from app.data.category_mapping import map_tourapi_category
+from app.data.category_defaults import get_category_defaults
 from app.data.mock_data import MOCK_POIS, POI, mock_realtime_population
 
 
@@ -123,11 +124,13 @@ class RealDataLoader(BaseDataLoader):
             except (TypeError, ValueError):
                 continue
 
+            defaults = get_category_defaults(category)
             pois.append(POI(
                 poi_id=poi_id,
                 name=item.get("title", ""),
                 category=category,
-                area_m2=10000.0,  # TODO: 상가업소정보 API 연동 전까지 임시 기본값
+                area_m2=defaults["area_m2"],
+                lat=lat,
                 lng=lng,
                 context_tags=[],
                 description="",  # TODO: detailCommon2로 별도 스크립트에서 채울 예정
