@@ -16,19 +16,26 @@ from sklearn.neighbors import NearestNeighbors
 from app.data.category_codes import CATEGORY_CODES
 from app.config import settings
 from app.data.mock_data import POI
+from app.models.embedding_model import get_mode_fit_vector
 
 def _poi_vector(poi: POI, quiet_index: float) -> list[float]:
     """
-    문서에서 말한 '고요 지수, 테마, 편의시설 등' 벡터를 단순화한 버전.
-    실서비스에서는 편의시설(주차/화장실 등) 피처를 추가로 확장 가능.
+    대체지 유사도 판단에 쓰이는 벡터.
+    [고요지수, 카테고리코드, 식생점수, 소음민감도] +
+    [WALK, CONTEMPLATION, CAFE_MODE, READING, CULTURE, SCENERY, EXPERIENCE] 적합도(7개)
+
+    모드 적합도를 추가한 이유: 카테고리만 보면 "자연공원류"로 비슷해 보여도
+    실제로 산책하기 좋은 곳인지, 물멍하기 좋은 곳인지는 다를 수 있어서
+    (2026-08-27 팀 확정 — 여행감성 7종 반영)
     """
-    return [
+    base = [
         quiet_index,
         CATEGORY_CODES.get(poi.category, -1),
         poi.vegetation_score,
         poi.noise_sensitivity,
     ]
-
+    mode_fit = get_mode_fit_vector(poi.description)
+    return base + mode_fit
 
 def should_trigger_nudge(quiet_index: float) -> bool:
     """문서의 If (Selected_POI.Quiet_Index < Threshold_Value) 트리거."""

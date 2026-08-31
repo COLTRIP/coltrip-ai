@@ -3,6 +3,8 @@ from __future__ import annotations
 # 소분류(lclsSystm3) 특별 처리 — 해수욕장만 NA02 그룹에서 분리
 LCLS_SYSTM3_TO_CATEGORY: dict[str, str] = {
     "NA020900": "해수욕장",
+    "VE090300": "도서관",
+    "VE120100": "서점",
 }
 
 # 중분류(lclsSystm2) -> 카테고리. TourAPI 중분류명을 그대로 사용.
@@ -46,3 +48,12 @@ def map_tourapi_category(lcls_systm3: str = "", lcls_systm2: str = "") -> str | 
     if lcls_systm3 in LCLS_SYSTM3_TO_CATEGORY:
         return LCLS_SYSTM3_TO_CATEGORY[lcls_systm3]
     return LCLS_SYSTM2_TO_CATEGORY.get(lcls_systm2)
+
+def test_library_and_bookstore_special_case():
+    assert map_tourapi_category(lcls_systm3="VE090300", lcls_systm2="VE09") == "도서관"
+    assert map_tourapi_category(lcls_systm3="VE120100", lcls_systm2="VE12") == "서점"
+
+
+def test_ve09_sibling_not_library():
+    # 같은 VE09 그룹이어도 도서관이 아니면 "교육시설"로
+    assert map_tourapi_category(lcls_systm3="VE090600", lcls_systm2="VE09") == "교육시설"

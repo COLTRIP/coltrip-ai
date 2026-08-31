@@ -95,3 +95,36 @@ def natural_sound_score(wind_speed_ms: float, vegetation_score: float) -> float:
         wind_score = max(0.0, 1.0 - distance / 5.0)
 
     return round(wind_score * 0.6 + vegetation_score * 0.4, 2)
+
+# 여행감성(Mode) 7종 — 2026-08-27 팀 확정.
+# 대체지 추천(nudge_engine.py)에서 "카테고리는 비슷한데 활동 궁합은 안 맞는"
+# 후보를 걸러내기 위해 사용합니다.
+MODE_QUERIES = {
+    "WALK": "산책하기 좋은 장소",
+    "CONTEMPLATION": "사유하고 명상하기 좋은 조용한 장소",
+    "CAFE_MODE": "카페에서 여유롭게 시간을 보내기 좋은 장소",
+    "READING": "책을 읽으며 조용히 독서하기 좋은 장소",
+    "CULTURE": "조용히 문화와 전시를 즐기기 좋은 장소",
+    "SCENERY": "풍경이나 물을 바라보며 멍하니 있기 좋은 장소",
+    "EXPERIENCE": "색다른 체험과 액티비티를 즐기기 좋은 장소",
+}
+
+
+def get_mode_fit_vector(poi_description: str) -> list[float]:
+    """
+    POI 설명 문장이 7개 여행감성 각각과 얼마나 어울리는지 계산합니다.
+    반환 순서: [WALK, CONTEMPLATION, CAFE_MODE, READING, CULTURE, SCENERY, EXPERIENCE]
+
+    대체지 추천(nudge_engine.py)에서 "카테고리는 비슷한데 활동 궁합은 안 맞는"
+    후보를 걸러내기 위해 사용합니다.
+    """
+    if not poi_description:
+        return [0.0] * 7
+
+    poi_vec = embed_text(poi_description)
+    scores = []
+    for query in MODE_QUERIES.values():
+        query_vec = embed_text(query)
+        sim = cosine_similarity(poi_vec, query_vec)
+        scores.append(round(max(0.0, min(1.0, sim)), 3))
+    return scores
