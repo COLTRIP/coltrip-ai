@@ -120,7 +120,7 @@ def get_mode_fit_vector(poi_description: str) -> list[float]:
     후보를 걸러내기 위해 사용합니다.
     """
     if not poi_description:
-        return [0.0] * 7
+        return [0.0] * 8
 
     poi_vec = embed_text(poi_description)
     scores = []
