@@ -14,6 +14,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 
 import httpx
+import requests
+import time
 
 from app.config import settings
 from app.data.category_mapping import map_tourapi_category
@@ -46,6 +48,9 @@ def _fetch_area_based_list(content_type_id: str, lcls_systm2: str | None = None)
     """
     TourAPI areaBasedList2를 호출해서 부산(lDongRegnCd=26) 관광지 원본 목록을 가져옵니다.
     결과가 많으면 여러 페이지로 나눠져 있어서, 전부 받을 때까지 반복 호출합니다.
+
+    이 서버가 간헐적으로 TLS handshake에서 멈추는 경우가 있어(공공데이터포털
+    자체의 알려진 불안정성), 페이지마다 최대 3번까지 재시도합니다.
     """
     items: list[dict] = []
     page_no = 1
@@ -66,14 +71,26 @@ def _fetch_area_based_list(content_type_id: str, lcls_systm2: str | None = None)
         if lcls_systm2:
             params["lclsSystm2"] = lcls_systm2
 
-        resp = httpx.get(f"{TOUR_API_BASE_URL}/areaBasedList2", params=params, timeout=10)
-        resp.raise_for_status()
+        resp = None
+        for attempt in range(3):
+            try:
+                resp = requests.get(
+                    f"{TOUR_API_BASE_URL}/areaBasedList2", params=params, timeout=15
+                )
+                resp.raise_for_status()
+                break
+            except requests.exceptions.RequestException as e:
+                print(f"  (재시도 {attempt + 1}/3) page {page_no}: {e}")
+                time.sleep(2)
+
+        if resp is None:
+            raise RuntimeError(f"page {page_no} 3번 재시도 후에도 실패")
+
         body = resp.json()["response"]["body"]
 
         raw_items = body["items"]
         page_items = raw_items["item"] if raw_items else []
         if isinstance(page_items, dict):
-            # 결과가 1건일 때 TourAPI가 리스트가 아니라 딕셔너리 하나로 줄 때가 있어서 보정
             page_items = [page_items]
 
         items.extend(page_items)
@@ -142,9 +159,28 @@ class RealDataLoader(BaseDataLoader):
         return pois
 
     def fetch_population(self, poi_id: str, hour: int, is_weekend: bool) -> int:
-        raise NotImplementedError("실제 TourAPI 연동 후 구현 예정")
+        from app.data.skt_congestion import fetch_skt_population
+        from app.data.busanjin_congestion import fetch_busanjin_population
 
+        pois = self.fetch_pois()
+        poi = next((p for p in pois if p.poi_id == poi_id), None)
+        if poi is None:
+            raise ValueError(f"존재하지 않는 poi_id: {poi_id}")
 
+        # 0순위: SKT 실시간 (18곳 한정)
+        skt_result = fetch_skt_population(poi_id, poi.area_m2)
+        if skt_result is not None:
+            return skt_result
+
+        # 1순위: 부산진구 자체 유동인구 (격자 매칭되는 경우만)
+        busanjin_result = fetch_busanjin_population(poi.lat, poi.lng)
+        if busanjin_result is not None:
+            return busanjin_result
+
+        # TODO: 나머지 폴백(지하철/도로/집중률/mock) 구현 예정
+        raise NotImplementedError("남은 폴백 단계 구현 예정")
+
+    
 def get_data_loader() -> BaseDataLoader:
     if settings.DATA_SOURCE == "real":
         return RealDataLoader()
