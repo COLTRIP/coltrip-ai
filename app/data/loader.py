@@ -162,6 +162,7 @@ class RealDataLoader(BaseDataLoader):
         from app.data.skt_congestion import fetch_skt_population
         from app.data.busanjin_congestion import fetch_busanjin_population
         from app.data.subway_congestion import fetch_subway_population
+        from app.data.cnctr_rate_congestion import fetch_cnctr_rate_population
 
         pois = self.fetch_pois()
         poi = next((p for p in pois if p.poi_id == poi_id), None)
@@ -183,8 +184,13 @@ class RealDataLoader(BaseDataLoader):
         if subway_result is not None:
             return subway_result
 
-        # TODO: 도로 소통정보, 관광지 집중률, mock 폴백 구현 예정
-        raise NotImplementedError("남은 폴백 단계 구현 예정")
+        # 3순위: 관광지 집중률(일 단위, 267개 관광지)
+        cnctr_result = fetch_cnctr_rate_population(poi.name, poi.area_m2)
+        if cnctr_result is not None:
+            return cnctr_result
+
+        # TODO: mock 최종 폴백 구현 예정
+        raise NotImplementedError("mock 폴백 구현 예정")
 
     
 def get_data_loader() -> BaseDataLoader:
