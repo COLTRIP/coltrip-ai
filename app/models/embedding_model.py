@@ -96,24 +96,25 @@ def natural_sound_score(wind_speed_ms: float, vegetation_score: float) -> float:
 
     return round(wind_score * 0.6 + vegetation_score * 0.4, 2)
 
-# 여행감성(Mode) 7종 — 2026-08-27 팀 확정.
-# 대체지 추천(nudge_engine.py)에서 "카테고리는 비슷한데 활동 궁합은 안 맞는"
+# 여행감성(Mode) 8종 — 2026-09 팀 최종 확정 (활동 중심 → 무드/분위기 중심으로 재설계).
+# 대체지 추천(nudge_engine.py)에서 "카테고리는 비슷한데 실제 분위기는 안 맞는"
 # 후보를 걸러내기 위해 사용합니다.
 MODE_QUERIES = {
-    "WALK": "산책하기 좋은 장소",
-    "CONTEMPLATION": "사유하고 명상하기 좋은 조용한 장소",
-    "CAFE_MODE": "카페에서 여유롭게 시간을 보내기 좋은 장소",
-    "READING": "책을 읽으며 조용히 독서하기 좋은 장소",
-    "CULTURE": "조용히 문화와 전시를 즐기기 좋은 장소",
-    "SCENERY": "풍경이나 물을 바라보며 멍하니 있기 좋은 장소",
-    "EXPERIENCE": "색다른 체험과 액티비티를 즐기기 좋은 장소",
+    "COZY": "아늑하고 편안하게 머물 수 있는 장소",
+    "NATURAL": "자연 속 싱그러운 풍경이 느껴지는 장소",
+    "URBAN": "세련되고 도시적인 분위기의 장소",
+    "VINTAGE": "낡고 오래된 정취가 느껴지는 빈티지한 장소",
+    "EXOTIC": "낯설고 이색적인 이국적 분위기의 장소",
+    "VIBRANT": "생동감 있고 활기찬 분위기의 장소",
+    "SENSORY": "오감을 자극하는 감각적인 장소",
+    "TRANQUIL": "조용하고 잔잔하게 마음이 가라앉는 고요한 장소",
 }
 
 
 def get_mode_fit_vector(poi_description: str) -> list[float]:
     """
-    POI 설명 문장이 7개 여행감성 각각과 얼마나 어울리는지 계산합니다.
-    반환 순서: [WALK, CONTEMPLATION, CAFE_MODE, READING, CULTURE, SCENERY, EXPERIENCE]
+    POI 설명 문장이 8개 여행감성 각각과 얼마나 어울리는지 계산합니다.
+    반환 순서: [COZY, NATURAL, URBAN, VINTAGE, EXOTIC, VIBRANT, SENSORY, TRANQUIL]
 
     대체지 추천(nudge_engine.py)에서 "카테고리는 비슷한데 활동 궁합은 안 맞는"
     후보를 걸러내기 위해 사용합니다.
