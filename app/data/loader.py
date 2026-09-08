@@ -115,7 +115,16 @@ class RealDataLoader(BaseDataLoader):
     지하철 시간대별 패턴 → 관광지 집중률(일단위) → mock 순서로 폴백합니다.
     """
 
+    _cached_pois: list[POI] | None = None
+    _cache_time: float = 0.0
+    _CACHE_TTL_SECONDS = 3600  # 1시간 — QuietIndex 배치 주기랑 맞춤
+
     def fetch_pois(self) -> list[POI]:
+        import time
+        now = time.time()
+        if self._cached_pois is not None and (now - self._cache_time) < self._CACHE_TTL_SECONDS:
+            return self._cached_pois
+
         raw_items: list[dict] = []
         for content_type_id in ("12", "14", "39"):  # 관광지, 문화시설, 음식점(카페)
             raw_items.extend(_fetch_area_based_list(content_type_id))
@@ -133,7 +142,7 @@ class RealDataLoader(BaseDataLoader):
                 lcls_systm2=item.get("lclsSystm2", ""),
             )
             if category is None:
-                continue  # 매핑 안 되는 카테고리는 일단 제외
+                continue
 
             try:
                 lat = float(item.get("mapy", 0))
@@ -150,12 +159,14 @@ class RealDataLoader(BaseDataLoader):
                 lat=lat,
                 lng=lng,
                 context_tags=[],
-                description="",  # TODO: detailCommon2로 별도 스크립트에서 채울 예정
+                description="",
                 has_indoor=defaults["has_indoor"],
                 vegetation_score=defaults["vegetation_score"],
             ))
             seen_ids.add(poi_id)
 
+        self.__class__._cached_pois = pois
+        self.__class__._cache_time = time.time()
         return pois
 
     def fetch_population(self, poi_id: str, hour: int, is_weekend: bool) -> int:
