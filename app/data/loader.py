@@ -111,8 +111,8 @@ class RealDataLoader(BaseDataLoader):
     실제 값으로 채웁니다. area_m2, description 등은 아직 데이터 소스가 없어
     임시 기본값으로 채워둔 상태입니다 (코드 내 TODO 참고).
 
-    fetch_population()은 아직 미구현 — 유동인구 데이터 소스 확정 후 구현 예정
-    (지하철 시간대별 승하차, 도로 소통정보 등 조합 검토 중).
+    fetch_population()은 SKT 실시간(18곳) → 부산진구 자체 유동인구 →
+    지하철 시간대별 패턴 → 관광지 집중률(일단위) → mock 순서로 폴백합니다.
     """
 
     def fetch_pois(self) -> list[POI]:
@@ -163,35 +163,30 @@ class RealDataLoader(BaseDataLoader):
         from app.data.busanjin_congestion import fetch_busanjin_population
         from app.data.subway_congestion import fetch_subway_population
         from app.data.cnctr_rate_congestion import fetch_cnctr_rate_population
+        from app.data.mock_data import mock_realtime_population
 
         pois = self.fetch_pois()
         poi = next((p for p in pois if p.poi_id == poi_id), None)
         if poi is None:
             raise ValueError(f"존재하지 않는 poi_id: {poi_id}")
 
-        # 0순위: SKT 실시간 (18곳 한정)
         skt_result = fetch_skt_population(poi_id, poi.area_m2)
         if skt_result is not None:
             return skt_result
 
-        # 1순위: 부산진구 자체 유동인구 (격자 매칭되는 경우만)
         busanjin_result = fetch_busanjin_population(poi.lat, poi.lng)
         if busanjin_result is not None:
             return busanjin_result
 
-        # 2순위: 지하철역 인근(반경 500m) 시간대별 평균 패턴
         subway_result = fetch_subway_population(poi.lat, poi.lng, hour, is_weekend)
         if subway_result is not None:
             return subway_result
 
-        # 3순위: 관광지 집중률(일 단위, 267개 관광지)
         cnctr_result = fetch_cnctr_rate_population(poi.name, poi.area_m2)
         if cnctr_result is not None:
             return cnctr_result
 
-        # TODO: mock 최종 폴백 구현 예정
-        raise NotImplementedError("mock 폴백 구현 예정")
-
+        return mock_realtime_population(poi_id, hour, is_weekend)
     
 def get_data_loader() -> BaseDataLoader:
     if settings.DATA_SOURCE == "real":
