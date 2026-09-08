@@ -161,6 +161,7 @@ class RealDataLoader(BaseDataLoader):
     def fetch_population(self, poi_id: str, hour: int, is_weekend: bool) -> int:
         from app.data.skt_congestion import fetch_skt_population
         from app.data.busanjin_congestion import fetch_busanjin_population
+        from app.data.subway_congestion import fetch_subway_population
 
         pois = self.fetch_pois()
         poi = next((p for p in pois if p.poi_id == poi_id), None)
@@ -177,7 +178,12 @@ class RealDataLoader(BaseDataLoader):
         if busanjin_result is not None:
             return busanjin_result
 
-        # TODO: 나머지 폴백(지하철/도로/집중률/mock) 구현 예정
+        # 2순위: 지하철역 인근(반경 500m) 시간대별 평균 패턴
+        subway_result = fetch_subway_population(poi.lat, poi.lng, hour, is_weekend)
+        if subway_result is not None:
+            return subway_result
+
+        # TODO: 도로 소통정보, 관광지 집중률, mock 폴백 구현 예정
         raise NotImplementedError("남은 폴백 단계 구현 예정")
 
     
