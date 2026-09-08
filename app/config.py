@@ -33,5 +33,7 @@ class Settings:
 
     MODEL_DIR: str = os.getenv("MODEL_DIR", "app/models/artifacts")
 
+    SKT_APP_KEY: str = ""
+
 
 settings = Settings()
