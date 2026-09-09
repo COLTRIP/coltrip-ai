@@ -175,6 +175,7 @@ class RealDataLoader(BaseDataLoader):
         from app.data.subway_congestion import fetch_subway_population
         from app.data.cnctr_rate_congestion import fetch_cnctr_rate_population
         from app.data.mock_data import mock_realtime_population
+        from app.data.congestion_logger import log_observation
 
         pois = self.fetch_pois()
         poi = next((p for p in pois if p.poi_id == poi_id), None)
@@ -183,10 +184,12 @@ class RealDataLoader(BaseDataLoader):
 
         skt_result = fetch_skt_population(poi_id, poi.area_m2)
         if skt_result is not None:
+            log_observation(poi_id, "skt", skt_result)
             return skt_result
 
         busanjin_result = fetch_busanjin_population(poi.lat, poi.lng)
         if busanjin_result is not None:
+            log_observation(poi_id, "busanjin", busanjin_result)
             return busanjin_result
 
         subway_result = fetch_subway_population(poi.lat, poi.lng, hour, is_weekend)
