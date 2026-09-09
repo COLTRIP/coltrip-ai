@@ -83,11 +83,13 @@ def should_trigger_nudge(quiet_index: float) -> bool:
 def recommend_alternatives(
     target_poi: POI,
     target_quiet_index: float,
-    candidates: list[tuple[POI, float]],  # (poi, quiet_index) 쌍의 리스트
+    candidates: list[tuple[POI, float]],
     k: int = 3,
     max_distance_km: float = 3.0,
     distance_weight: float = 0.3,
+    exclude_poi_ids: set[str] | None = None,
 ) -> list[dict]:
+    
     """
     target_poi 대비 유사하면서 더 한적한 대체 장소를 추천합니다.
 
@@ -99,6 +101,8 @@ def recommend_alternatives(
     filtered = []
     for poi, qi in candidates:
         if poi.poi_id == target_poi.poi_id:
+            continue
+        if exclude_poi_ids and poi.poi_id in exclude_poi_ids:
             continue
         if qi <= target_quiet_index:
             # 더 한적한 곳만 추천 (문서: '고요 지수'가 높은 곳을 최우선 필터링)
