@@ -5,3 +5,7 @@ __pycache__/
 venv/
 app/models/artifacts/
 .pytest_cache/
+all_pois_first6000.json
+all_pois_rest.json
+skt_verified_working.json
+.DS_Store
