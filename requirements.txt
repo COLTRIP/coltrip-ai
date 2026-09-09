@@ -10,3 +10,4 @@ httpx==0.27.2
 # 감성 맥락 매칭용 로컬 한국어 임베딩 (jhgan/ko-sroberta-multitask)
 # 최초 설치/실행 시 HuggingFace Hub에서 모델(~440MB)을 자동 다운로드하므로 인터넷 필요.
 sentence-transformers>=3.0.0
+requests

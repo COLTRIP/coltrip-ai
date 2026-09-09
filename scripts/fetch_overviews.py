@@ -21,7 +21,7 @@ from app.data.loader import TOUR_API_BASE_URL, _fetch_area_based_list
 OUTPUT_PATH = Path("scripts/overviews.csv")
 
 
-def fetch_overview(content_id: str) -> str:
+def fetch_overview(content_id: str) -> dict:
     params = {
         "serviceKey": settings.TOUR_API_KEY,
         "MobileOS": "ETC",
@@ -36,12 +36,11 @@ def fetch_overview(content_id: str) -> str:
     body = resp.json()["response"]["body"]
     items = body.get("items", "")
     if not items:
-        return ""
+        return {"overview": "", "image": ""}
     item = items["item"]
     if isinstance(item, list):
         item = item[0]
-    return item.get("overview", "")
-
+    return {"overview": item.get("overview", ""), "image": item.get("firstimage", "")}
 
 def load_existing_ids() -> set[str]:
     if not OUTPUT_PATH.exists():
