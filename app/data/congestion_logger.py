@@ -1,32 +1,45 @@
-    def fetch_population(self, poi_id: str, hour: int, is_weekend: bool) -> int:
-        from app.data.skt_congestion import fetch_skt_population
-        from app.data.busanjin_congestion import fetch_busanjin_population
-        from app.data.subway_congestion import fetch_subway_population
-        from app.data.cnctr_rate_congestion import fetch_cnctr_rate_population
-        from app.data.mock_data import mock_realtime_population
-        from app.data.congestion_logger import log_observation
+"""
+SKT·부산진구 실시간 데이터를 부를 때마다, 나중에 지하철처럼 "시간대별 평균
+패턴"을 학습할 수 있도록 관측값을 계속 CSV에 쌓아둡니다.
 
-        pois = self.fetch_pois()
-        poi = next((p for p in pois if p.poi_id == poi_id), None)
-        if poi is None:
-            raise ValueError(f"존재하지 않는 poi_id: {poi_id}")
+지하철 데이터(6개월치)로 평균 패턴을 만들었던 것과 같은 방식을, SKT·부산진구도
+나중에(예: 11월 부산 현장검증 즈음) 시도해볼 수 있도록 지금부터 데이터를
+모아두는 목적입니다. 추가 API 호출을 발생시키지 않고, 이미 하는 호출의
+결과값만 옆에서 기록합니다.
+"""
+from __future__ import annotations
 
-        skt_result = fetch_skt_population(poi_id, poi.area_m2)
-        if skt_result is not None:
-            log_observation(poi_id, "skt", skt_result)
-            return skt_result
+import csv
+from datetime import datetime
+from pathlib import Path
 
-        busanjin_result = fetch_busanjin_population(poi.lat, poi.lng)
-        if busanjin_result is not None:
-            log_observation(poi_id, "busanjin", busanjin_result)
-            return busanjin_result
+_LOG_PATH = Path(__file__).parent / "congestion_observations.csv"
 
-        subway_result = fetch_subway_population(poi.lat, poi.lng, hour, is_weekend)
-        if subway_result is not None:
-            return subway_result
 
-        cnctr_result = fetch_cnctr_rate_population(poi.name, poi.area_m2)
-        if cnctr_result is not None:
-            return cnctr_result
+def log_observation(poi_id: str, source: str, value: int) -> None:
+    """
+    관측값 한 건을 기록합니다.
 
-        return mock_realtime_population(poi_id, hour, is_weekend)
+    poi_id: 우리 쪽 POI 식별자
+    source: "skt" 또는 "busanjin"
+    value: 그 시점에 계산된 population 값
+    """
+    now = datetime.now()
+    is_new_file = not _LOG_PATH.exists()
+
+    try:
+        with open(_LOG_PATH, "a", newline="", encoding="utf-8-sig") as f:
+            writer = csv.writer(f)
+            if is_new_file:
+                writer.writerow(["timestamp", "poi_id", "source", "weekday", "hour", "value"])
+            writer.writerow([
+                now.isoformat(timespec="seconds"),
+                poi_id,
+                source,
+                now.strftime("%a"),  # 예: Mon, Tue ...
+                now.hour,
+                value,
+            ])
+    except OSError:
+        # 로깅 실패가 본 기능(고요지수 계산)을 막으면 안 되므로 조용히 무시
+        pass
