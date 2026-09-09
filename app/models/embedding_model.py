@@ -96,18 +96,17 @@ def natural_sound_score(wind_speed_ms: float, vegetation_score: float) -> float:
 
     return round(wind_score * 0.6 + vegetation_score * 0.4, 2)
 
-# 여행감성(Mode) 8종 — 2026-09 팀 최종 확정 (활동 중심 → 무드/분위기 중심으로 재설계).
-# 대체지 추천(nudge_engine.py)에서 "카테고리는 비슷한데 실제 분위기는 안 맞는"
-# 후보를 걸러내기 위해 사용합니다.
-MODE_QUERIES = {
-    "COZY": "아늑하고 편안하게 머물 수 있는 장소",
-    "NATURAL": "자연 속 싱그러운 풍경이 느껴지는 장소",
-    "URBAN": "세련되고 도시적인 분위기의 장소",
-    "VINTAGE": "낡고 오래된 정취가 느껴지는 빈티지한 장소",
-    "EXOTIC": "낯설고 이색적인 이국적 분위기의 장소",
-    "VIBRANT": "생동감 있고 활기찬 분위기의 장소",
-    "SENSORY": "오감을 자극하는 감각적인 장소",
-    "TRANQUIL": "조용하고 잔잔하게 마음이 가라앉는 고요한 장소",
+# 사용자가 고르는 고정 옵션(드롭다운)을 자연어 쿼리 문장으로 변환하기 위한 매핑.
+# 여행감성 8종 최종 확정안 반영 (2026-09) — MODE_QUERIES와 이름 체계를 통일.
+_MOOD_PHRASES = {
+    "COZY": "아늑하고 편안하게 머물 수 있는",
+    "NATURAL": "자연 속 싱그러운 풍경이 느껴지는",
+    "URBAN": "세련되고 도시적인 분위기의",
+    "VINTAGE": "낡고 오래된 정취가 느껴지는 빈티지한",
+    "EXOTIC": "낯설고 이색적인 이국적 분위기의",
+    "VIBRANT": "생동감 있고 활기찬 분위기의",
+    "SENSORY": "오감을 자극하는 감각적인",
+    "TRANQUIL": "조용하고 잔잔하게 마음이 가라앉는 고요한",
 }
 
 

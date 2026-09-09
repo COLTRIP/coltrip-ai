@@ -17,7 +17,7 @@ class QuietIndexResponse(BaseModel):
 
 
 class RecommendRequest(BaseModel):
-    mood: str = Field(..., description="인문적 | 자연적")
+    mood: str = Field(..., description="COZY | NATURAL | URBAN | VINTAGE | EXOTIC | VIBRANT | SENSORY | TRANQUIL")
     purpose: str = Field(..., description="예: 사유, 명상, 산책, 독서")
     hour: int = Field(12, ge=0, le=23)
     is_weekend: bool = False
