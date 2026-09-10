@@ -35,5 +35,7 @@ class Settings:
 
     SKT_APP_KEY: str = os.getenv("SKT_APP_KEY", "")
 
+    AI_SERVER_API_KEY: str = os.getenv("AI_SERVER_API_KEY", "")
+
 
 settings = Settings()
