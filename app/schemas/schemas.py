@@ -62,6 +62,7 @@ class AlternativePlace(CamelModel):
     quiet_index: float
     distance_km: float
     score: float
+    recommend_reason: str
 
 
 class AlternativeResponse(CamelModel):
