@@ -4,10 +4,12 @@ from app.models.nudge_engine import recommend_alternatives, should_trigger_nudge
 from app.services.quiet_index_service import get_all_quiet_indices, get_quiet_index
 
 
-def get_alternatives_if_needed(poi_id: str, hour: int, is_weekend: bool) -> dict:
+def get_alternatives_if_needed(
+    poi_id: str, hour: int, is_weekend: bool, baseline_quiet_index: float | None = None
+) -> dict:
     target_poi, _population, target_quiet_index = get_quiet_index(poi_id, hour, is_weekend)
 
-    triggered = should_trigger_nudge(target_quiet_index)
+    triggered = should_trigger_nudge(target_quiet_index, baseline_quiet_index)
     if not triggered:
         return {"triggered": False, "target_quiet_index": target_quiet_index, "alternatives": []}
 

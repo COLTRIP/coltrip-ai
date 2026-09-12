@@ -75,9 +75,17 @@ def _generate_recommend_reason(
     return " ".join(parts) + f" {candidate.category}예요"
 
 
-def should_trigger_nudge(quiet_index: float) -> bool:
-    """문서의 If (Selected_POI.Quiet_Index < Threshold_Value) 트리거."""
-    return quiet_index < settings.QUIET_INDEX_ALERT_THRESHOLD
+def should_trigger_nudge(quiet_index: float, baseline_quiet_index: float | None = None) -> bool:
+    """
+    트리거 조건 (둘 중 하나만 충족해도 트리거):
+      - 절대 기준: 현재 고요 지수 < Threshold_Value(기본 40)
+      - 상대 기준: baseline_quiet_index가 주어졌고, 그 대비 15 이상 하락
+    """
+    if quiet_index < settings.QUIET_INDEX_ALERT_THRESHOLD:
+        return True
+    if baseline_quiet_index is not None and (baseline_quiet_index - quiet_index) >= 15:
+        return True
+    return False
 
 
 def recommend_alternatives(

@@ -54,6 +54,9 @@ class AlternativeRequest(CamelModel):
     poi_id: str
     hour: int = Field(12, ge=0, le=23)
     is_weekend: bool = False
+    baseline_quiet_index: float | None = Field(
+        None, description="방문 시작 시점의 고요 지수. 있으면 상대 기준(15 이상 하락) 트리거도 함께 검사"
+    )
 
 
 class AlternativePlace(CamelModel):
