@@ -34,8 +34,7 @@ class RecommendRequest(CamelModel):
     purpose: str = Field(..., description="예: 사유, 명상, 산책, 독서")
     hour: int = Field(12, ge=0, le=23)
     is_weekend: bool = False
-    natural_sound_mode: bool = False
-    wind_speed_ms: float | None = None
+    
 
 
 class RecommendedPlace(CamelModel):
@@ -43,7 +42,7 @@ class RecommendedPlace(CamelModel):
     name: str
     quiet_index: float
     context_match_score: float
-    natural_sound_score: float | None = None
+
 
 
 class RecommendResponse(CamelModel):

@@ -16,7 +16,5 @@ def recommend(payload: RecommendRequest):
         purpose=payload.purpose,
         hour=payload.hour,
         is_weekend=payload.is_weekend,
-        natural_sound_mode=payload.natural_sound_mode,
-        wind_speed_ms=payload.wind_speed_ms,
     )
     return RecommendResponse(results=results)

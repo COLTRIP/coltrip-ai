@@ -58,10 +58,16 @@ def cosine_similarity(vec_a, vec_b) -> float:
 
 
 # 사용자가 고르는 고정 옵션(드롭다운)을 자연어 쿼리 문장으로 변환하기 위한 매핑.
-# 자유 텍스트 입력이 아니라 정해진 선택지이므로, 이 정도 하드코딩으로 충분함.
+# 여행감성 8종 최종 확정안 반영 (2026-09).
 _MOOD_PHRASES = {
-    "인문적": "고즈넉하고 사유적인 인문학적 분위기",
-    "자연적": "자연 속에서 탁 트인 개방감 있는 분위기",
+    "COZY": "아늑하고 편안하게 머물 수 있는",
+    "NATURAL": "자연 속 싱그러운 풍경이 느껴지는",
+    "URBAN": "세련되고 도시적인 분위기의",
+    "VINTAGE": "낡고 오래된 정취가 느껴지는 빈티지한",
+    "EXOTIC": "낯설고 이색적인 이국적 분위기의",
+    "VIBRANT": "생동감 있고 활기찬 분위기의",
+    "SENSORY": "오감을 자극하는 감각적인",
+    "TRANQUIL": "조용하고 잔잔하게 마음이 가라앉는 고요한",
 }
 
 
@@ -83,30 +89,18 @@ def matches_user_context(poi_description: str, mood: str, purpose: str) -> float
     return round(max(0.0, min(1.0, sim)), 3)
 
 
-def natural_sound_score(wind_speed_ms: float, vegetation_score: float) -> float:
-    """
-    '자연의 소리' 모드용 환경 동기화 로직 (임베딩과 무관, 기존 규칙 유지).
-    문서 조건: "풍속 3~5m/s + 식생 데이터(숲) = 잎소리 ASMR 최상"
-    """
-    if 3.0 <= wind_speed_ms <= 5.0:
-        wind_score = 1.0
-    else:
-        distance = min(abs(wind_speed_ms - 3.0), abs(wind_speed_ms - 5.0))
-        wind_score = max(0.0, 1.0 - distance / 5.0)
-
-    return round(wind_score * 0.6 + vegetation_score * 0.4, 2)
-
-# 사용자가 고르는 고정 옵션(드롭다운)을 자연어 쿼리 문장으로 변환하기 위한 매핑.
-# 여행감성 8종 최종 확정안 반영 (2026-09) — MODE_QUERIES와 이름 체계를 통일.
-_MOOD_PHRASES = {
-    "COZY": "아늑하고 편안하게 머물 수 있는",
-    "NATURAL": "자연 속 싱그러운 풍경이 느껴지는",
-    "URBAN": "세련되고 도시적인 분위기의",
-    "VINTAGE": "낡고 오래된 정취가 느껴지는 빈티지한",
-    "EXOTIC": "낯설고 이색적인 이국적 분위기의",
-    "VIBRANT": "생동감 있고 활기찬 분위기의",
-    "SENSORY": "오감을 자극하는 감각적인",
-    "TRANQUIL": "조용하고 잔잔하게 마음이 가라앉는 고요한",
+# 여행감성 8종 각각을 대표하는 쿼리 문장. get_mode_fit_vector()에서
+# POI 설명과의 유사도를 재는 기준으로 사용됩니다.
+# 반환 순서(딕셔너리 삽입 순서)가 get_mode_fit_vector()의 반환 벡터 순서를 결정합니다.
+MODE_QUERIES = {
+    "COZY": "아늑하고 편안하게 머물 수 있는 장소",
+    "NATURAL": "자연 속 싱그러운 풍경이 느껴지는 장소",
+    "URBAN": "세련되고 도시적인 분위기의 장소",
+    "VINTAGE": "낡고 오래된 정취가 느껴지는 빈티지한 장소",
+    "EXOTIC": "낯설고 이색적인 이국적 분위기의 장소",
+    "VIBRANT": "생동감 있고 활기찬 분위기의 장소",
+    "SENSORY": "오감을 자극하는 감각적인 장소",
+    "TRANQUIL": "조용하고 잔잔하게 마음이 가라앉는 고요한 장소",
 }
 
 
