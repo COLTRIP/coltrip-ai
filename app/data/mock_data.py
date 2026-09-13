@@ -25,11 +25,11 @@ class POI:
     area_m2: float
     lat: float
     lng: float
-    context_tags: list[str] = field(default_factory=list)  # 참고용 라벨 (임베딩 이후에도 필터/분석용으로 남겨둠)
-    description: str = ""  # 임베딩 입력으로 쓰이는 자연어 설명 문장 (감성 맥락 매칭의 핵심 필드)
-    has_indoor: bool = False  # 실내 여부 (날씨 연동 로직에 사용)
-    vegetation_score: float = 0.0  # 0~1, 식생(숲) 밀도 — 잎소리 ASMR 조건용
-
+    context_tags: list[str] = field(default_factory=list)
+    description: str = ""
+    has_indoor: bool = False
+    vegetation_score: float = 0.0
+    address: str = ""  # TourAPI addr1 (도로명/지번 주소) — 백엔드 spots push용
 
 # 실제로는 TourAPI(관광지 기본정보) + 공공데이터포털(상가업소 면적) 조인으로 채워질 테이블.
 # 지금은 부산의 대표 유형별로 하나씩 샘플을 만들어 파이프라인을 검증합니다.
