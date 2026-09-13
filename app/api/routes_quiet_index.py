@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
-from app.schemas.schemas import QuietIndexRequest, QuietIndexResponse
+from app.schemas.schemas import QuietIndexMapItem, QuietIndexRequest, QuietIndexResponse
 from app.services.quiet_index_service import get_all_quiet_indices, get_quiet_index
 
 router = APIRouter(prefix="/quiet-index", tags=["quiet-index"])
@@ -22,17 +22,13 @@ def read_quiet_index(payload: QuietIndexRequest):
     )
 
 
-@router.get("/map")
+@router.get("/map", response_model=list[QuietIndexMapItem])
 def read_all_quiet_indices(hour: int = 12, is_weekend: bool = False):
     """지도 매핑용: 전체 POI의 고요 지수를 한 번에 반환 (1단계 기능)."""
     results = get_all_quiet_indices(hour, is_weekend)
     return [
-        {
-            "poi_id": poi.poi_id,
-            "name": poi.name,
-            "lat": poi.lat,
-            "lng": poi.lng,
-            "quiet_index": quiet_index,
-        }
+        QuietIndexMapItem(
+            poi_id=poi.poi_id, name=poi.name, lat=poi.lat, lng=poi.lng, quiet_index=quiet_index
+        )
         for poi, _population, quiet_index in results
     ]

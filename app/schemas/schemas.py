@@ -28,6 +28,13 @@ class QuietIndexResponse(CamelModel):
     population: int
     quiet_index: float
 
+class QuietIndexMapItem(CamelModel):
+    poi_id: str
+    name: str
+    lat: float
+    lng: float
+    quiet_index: float
+
 
 class RecommendRequest(CamelModel):
     mood: str = Field(..., description="COZY | NATURAL | URBAN | VINTAGE | EXOTIC | VIBRANT | SENSORY | TRANQUIL")
