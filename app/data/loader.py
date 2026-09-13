@@ -178,6 +178,7 @@ class RealDataLoader(BaseDataLoader):
                 has_indoor=defaults["has_indoor"],
                 vegetation_score=defaults["vegetation_score"],
                 address=item.get("addr1", ""),
+                image_url=item.get("firstimage", ""),
             ))
             seen_ids.add(poi_id)
 

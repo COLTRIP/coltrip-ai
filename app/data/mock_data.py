@@ -29,7 +29,8 @@ class POI:
     description: str = ""
     has_indoor: bool = False
     vegetation_score: float = 0.0
-    address: str = ""  # TourAPI addr1 (도로명/지번 주소) — 백엔드 spots push용
+    address: str = ""
+    image_url: str = ""  # TourAPI firstimage — 백엔드 spots push용
 
 # 실제로는 TourAPI(관광지 기본정보) + 공공데이터포털(상가업소 면적) 조인으로 채워질 테이블.
 # 지금은 부산의 대표 유형별로 하나씩 샘플을 만들어 파이프라인을 검증합니다.
