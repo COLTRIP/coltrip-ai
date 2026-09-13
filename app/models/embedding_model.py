@@ -36,7 +36,7 @@ def _get_model():
     return _model
 
 
-@lru_cache(maxsize=512)
+@lru_cache(maxsize=2048)
 def embed_text(text: str) -> tuple:
     """
     문장을 임베딩 벡터로 변환.
