@@ -40,6 +40,20 @@ class MockDataLoader(BaseDataLoader):
     def fetch_population(self, poi_id: str, hour: int, is_weekend: bool) -> int:
         return mock_realtime_population(poi_id, hour, is_weekend)
 
+import json
+from pathlib import Path
+
+_POI_DESCRIPTIONS_PATH = Path(__file__).parent / "poi_descriptions.json"
+_poi_descriptions_cache: dict | None = None
+
+
+def _load_poi_descriptions() -> dict:
+    global _poi_descriptions_cache
+    if _poi_descriptions_cache is None:
+        with open(_POI_DESCRIPTIONS_PATH, encoding="utf-8") as f:
+            _poi_descriptions_cache = json.load(f)
+    return _poi_descriptions_cache
+
 
 TOUR_API_BASE_URL = "https://apis.data.go.kr/B551011/KorService2"
 
@@ -151,6 +165,7 @@ class RealDataLoader(BaseDataLoader):
                 continue
 
             defaults = get_category_defaults(category)
+            desc_data = _load_poi_descriptions().get(poi_id, {})
             pois.append(POI(
                 poi_id=poi_id,
                 name=item.get("title", ""),
@@ -158,8 +173,8 @@ class RealDataLoader(BaseDataLoader):
                 area_m2=defaults["area_m2"],
                 lat=lat,
                 lng=lng,
-                context_tags=[],
-                description="",
+                context_tags=desc_data.get("modes", []),
+                description=desc_data.get("description", ""),
                 has_indoor=defaults["has_indoor"],
                 vegetation_score=defaults["vegetation_score"],
                 address=item.get("addr1", ""),
