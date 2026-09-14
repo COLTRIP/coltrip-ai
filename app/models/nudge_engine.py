@@ -126,6 +126,15 @@ def recommend_alternatives(
     target_vec = np.array([_poi_vector(target_poi, target_quiet_index)])
     candidate_vecs = np.array([_poi_vector(poi, qi) for poi, qi, _ in filtered])
 
+    # 스케일이 다른 피처(고요지수 0~100, 카테고리 코드 등)가 거리 계산을
+    # 지배하지 않도록 타깃+후보 벡터를 함께 min-max 정규화한다.
+    all_vecs = np.vstack([target_vec, candidate_vecs])
+    vec_min = all_vecs.min(axis=0)
+    vec_range = all_vecs.max(axis=0) - vec_min
+    vec_range[vec_range == 0] = 1.0  # 상수 컬럼 나눗셈 방지
+    all_vecs = (all_vecs - vec_min) / vec_range
+    target_vec, candidate_vecs = all_vecs[:1], all_vecs[1:]
+
     n_neighbors = min(k, len(filtered))
     nn = NearestNeighbors(n_neighbors=n_neighbors)
     nn.fit(candidate_vecs)
