@@ -1,4 +1,3 @@
-
 """
 관광지 집중률(30일 예측) 데이터를, 백엔드의 새 예측 API로 push합니다.
 
@@ -6,12 +5,24 @@ docs/forecast-api-spec.md 계약을 따릅니다:
   POST /api/internal/quiet-index/forecasts
 
 전송 대상은 594개 전체가 아니라, 실제로 "날짜별로 다른 값"을 가진
-관광지 집중률 데이터가 있는 267곳뿐입니다. 나머지 327곳은 진짜 미래
+관광지 집중률 데이터가 있는 223곳뿐입니다. 나머지 관광지는 진짜 미래
 예측 수단이 없어서 보내지 않고, 백엔드 스펙대로 "예측 없음"으로 자연스럽게
 추천 목록에서 빠지게 둡니다.
 
-quietIndex = 100 - cnctrRate 로 환산합니다 (집중률이 낮을수록 한적하다는
-직관을 그대로 반영한 가장 단순한 공식).
+quietIndex 계산 (2026-09 수정):
+  최초엔 quietIndex = 100 - cnctrRate로 단순 계산했으나, 실제 값이
+  80점대에 몰려 분별이 안 되는 문제가 있었습니다. 원인은 한국관광공사
+  집중률 원본 자체가 대부분 낮은 값에 쏠려있어, 100에서 빼면 자연히
+  높은 쪽에 몰리기 때문입니다.
+
+  1차 수정: 전체 기간(7일치)을 통째로 min-max 정규화 → 전체 범위는
+  0~100으로 넓어졌지만, "하루만 떼어보면" 그날 안에서는 여전히 좁게
+  몰려 보이는 문제가 남았습니다(그날의 실제 장소간 편차가 원래 작아서).
+
+  2차 수정(현재): 날짜별로 따로 min-max 정규화합니다. "그날 하루 안에서
+  223곳끼리 비교"가 항상 0~100 전체 폭을 쓰도록 날짜 단위로 정규화 범위를
+  나눠 계산합니다. 사용자가 "오늘 어디가 더 한적한지" 비교하는 실제
+  사용 맥락에 맞는 방식입니다.
 
 집중률 원본이 "하루 1개 값"이라, 같은 날짜의 24개 시간 슬롯 전부에 같은
 값을 넣습니다 — 시간대별 변화를 실제로 아는 게 아니므로 지어내지 않습니다.
@@ -21,6 +32,7 @@ modelVersion을 "cnctr-relay-v1"로 정직하게 표기합니다 — AI가 직�
 것이기 때문입니다.
 """
 import json
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -63,29 +75,64 @@ def find_cnctr_for_poi(poi_name: str, name_to_cnctr: dict) -> dict[str, float] |
 
 
 def build_forecasts_for_poi(poi_id: str, dates: dict[str, float]) -> list[dict]:
-    """이 POI의 향후 FORECAST_DAYS일치 시간별(24슬롯) 예측 레코드를 만듭니다."""
+    """
+    이 POI의 향후 FORECAST_DAYS일치 시간별(24슬롯) 예측 레코드를 만듭니다.
+    quietIndex는 아직 계산 안 하고, 원본 cnctrRate만 담아둡니다
+    (날짜별로 모은 뒤 min-max 정규화로 나중에 한꺼번에 계산할 것이라).
+    """
     now_kst = datetime.now(KST)
     start_hour = now_kst.replace(minute=0, second=0, microsecond=0)
 
-    forecasts = []
+    records = []
     for h in range(FORECAST_DAYS * 24 + 1):
         target_at = start_hour + timedelta(hours=h)
         date_key = target_at.strftime("%Y%m%d")
         cnctr_rate = dates.get(date_key)
         if cnctr_rate is None:
-            continue  # 이 날짜는 집중률 데이터 범위 밖 (30일 지남 등)
+            continue
 
-        quiet_index = round(max(0.0, min(100.0, 100 - cnctr_rate)), 2)
         valid_until = target_at + timedelta(hours=1)
-
-        forecasts.append({
+        records.append({
             "tourApiContentId": poi_id,
             "targetAt": target_at.isoformat(timespec="seconds"),
-            "quietIndex": quiet_index,
             "validUntil": valid_until.isoformat(timespec="seconds"),
+            "_cnctr_rate": cnctr_rate,  # 임시 필드, 정규화 후 제거
         })
-    return forecasts
+    return records
 
+
+def normalize_quiet_index_per_date(all_forecasts: list[dict]) -> None:
+    """
+    targetAt의 날짜 부분별로, 그날 223곳을 집중률 기준으로 순위 매겨서
+    백분위(percentile)를 quietIndex로 씁니다(_cnctr_rate는 제거).
+
+    min-max 대신 순위 기반으로 바꾼 이유: min-max는 "양 끝 두 값"에만
+    맞춰서 늘리는 방식이라, 대부분의 값이 원래 좁은 구간에 몰려있으면
+    정규화해도 여전히 좁게 나옵니다(실측: 최저 79점). 순위 기반은 분포
+    모양과 무관하게 항상 0~100에 고르게 펼쳐지고, 꼴찌는 반드시 0점
+    근처가 되도록 보장합니다 — 대체지 추천의 "40점 미만" 절대 기준이
+    실제로 의미 있게 작동하려면 이 방식이 맞습니다.
+    """
+    by_date = defaultdict(list)
+    for f in all_forecasts:
+        date_key = f["targetAt"][:10]  # "2026-09-14T21:00:00+09:00" -> "2026-09-14"
+        by_date[date_key].append(f)
+
+    for date_key, records in sorted(by_date.items()):
+        n = len(records)
+        # 집중률 오름차순(한적한 순) 정렬 -> 순위가 곧 quietIndex 백분위
+        records_sorted = sorted(records, key=lambda r: r["_cnctr_rate"])
+        rates = [r["_cnctr_rate"] for r in records_sorted]
+        print(f"{date_key}: 집중률 {rates[0]:.2f}~{rates[-1]:.2f} ({n}건)")
+
+        for rank, r in enumerate(records_sorted):
+            r.pop("_cnctr_rate")
+            if n == 1:
+                r["quietIndex"] = 50.0
+            else:
+                # rank=0(가장 한적함) -> 100점, rank=n-1(가장 붐빔) -> 0점
+                percentile = (n - 1 - rank) / (n - 1) * 100
+                r["quietIndex"] = round(percentile, 2)
 
 def main():
     name_to_cnctr = build_name_to_cnctr()
@@ -103,6 +150,9 @@ def main():
 
     print(f"집중률 매칭된 관광지: {matched_count}개")
     print(f"전체 예측 레코드: {len(all_forecasts)}개\n")
+
+    normalize_quiet_index_per_date(all_forecasts)
+    print()
 
     generated_at = datetime.now(KST).isoformat(timespec="seconds")
     client = httpx.Client(timeout=30)
