@@ -1,24 +1,47 @@
 """
 실시간 고요 지수(Quiet Index) 모델.
 
-노션 문서의 설계를 기반으로 구현 (2026-08-27 업데이트: 소음 민감도 가중치 제거):
+노션 문서의 설계를 기반으로 구현:
   1) 기본 밀도 D = 실시간 인구수(P) / 면적(A)
-  2) [실시간 인구수, 면적, 카테고리, 시간대, 주말여부, 밀도]를
-     피처로 하는 RandomForestRegressor로 최종 "체감 혼잡도(0~100)"를 추정
-     (카테고리별 체감 차이는 category 피처 자체로 모델이 학습하도록 함 —
-     소음 민감도를 손으로 곱해 미리 반영하지 않음. 근거 없는 추정치를
-     합성 학습 데이터에 중복 반영하는 걸 피하기 위함)
+  2) D를 로그 스케일로 압축한 뒤, 실제 부산 594개 관광지에서 관측된
+     로그밀도 범위(min~max)를 0~100으로 늘려서 "체감 혼잡도"를 계산
   3) Quiet Index = 100 - 체감 혼잡도  (점수가 높을수록 더 고요함)
 
-지금은 학습 데이터가 없으므로, 물리적으로 타당한 규칙(밀도가 높을수록
-혼잡도가 높다)을 반영한 합성(synthetic) 학습 데이터로 모델을 학습합니다.
-실제 방문객 만족도/혼잡 신고 데이터가 쌓이면 `train_on_real_data()`로
-교체하면 됩니다.
+2026-09 재작성 배경:
+  기존엔 RandomForestRegressor를 mock 합성 학습 데이터(평균 밀도 0.02 근처로
+  생성)로 학습시켜 사용했습니다. 실제 데이터를 넣어보니 밀도가 0.0009~2.67
+  (약 3,000배 차)로, 학습 범위와 완전히 달라서 모델이 "낯선 입력"을
+  제대로 구분 못 하고 80~86점 사이로만 뭉뚱그려 예측하는 문제가 있었습니다.
+
+  또한 실제 밀도 분포 자체가 심하게 치우쳐 있어(중간값이 최댓값의
+  1/27 수준), 단순 min-max로 늘리기만 하면 극단값 하나 때문에 나머지
+  대부분이 다시 좁은 구간에 몰립니다. 그래서 로그 변환으로 먼저 분포를
+  고르게 압축한 뒤 0~100으로 펼칩니다.
+
+  로그밀도 범위(-6.8929 ~ 0.9813)는 2026-09-14 기준 594개 관광지 전체의
+  실측값으로 캘리브레이션한 상수입니다. 나중에 관광지 수·유형 구성이
+  크게 달라지면(신규 대량 추가 등) 재계산을 권장합니다.
+
+  머신러닝 모델을 걷어낸 이유: (1) 장소 하나만 조회해도 즉시 계산
+  가능해져 594개 전체를 매번 순회할 필요가 없고, (2) 계산식이 투명해서
+  왜 이런 점수가 나왔는지 팀 누구나 바로 확인·조정할 수 있습니다.
 """
 from __future__ import annotations
-from app.data.category_codes import CATEGORY_CODES
-import numpy as np
-from sklearn.ensemble import RandomForestRegressor
+
+import math
+
+
+# 2026-09-14 기준 594개 관광지 실측 로그밀도 범위에, 양쪽으로 15% 여유를 둔 값.
+# (실측값을 그대로 쓰면 "오늘 제일 붐빈 곳=무조건 0점, 제일 한적한 곳=무조건 100점"이
+#  강제로 맞춰지는 셈이라 다소 인위적으로 느껴짐 — 여유를 둬서 대부분은 10~90 사이에
+#  자연스럽게 분포하고, 진짜 극단적인 값이 나올 때만 0/100에 가까워지도록 함)
+_OBSERVED_LOG_MIN = -6.8929
+_OBSERVED_LOG_MAX = 0.9813
+_PADDING_RATIO = 0.30
+_span = _OBSERVED_LOG_MAX - _OBSERVED_LOG_MIN
+_LOG_DENSITY_MIN = _OBSERVED_LOG_MIN - _span * _PADDING_RATIO
+_LOG_DENSITY_MAX = _OBSERVED_LOG_MAX + _span * _PADDING_RATIO
+
 
 def compute_density(population: int, area_m2: float) -> float:
     """기본 밀도(D = P/A)."""
@@ -27,78 +50,24 @@ def compute_density(population: int, area_m2: float) -> float:
     return population / area_m2
 
 
-def _category_code(category: str) -> int:
-    return CATEGORY_CODES.get(category, -1)
-
-
 class QuietIndexModel:
-    def __init__(self, n_estimators: int = 200, random_state: int = 42):
-        self.model = RandomForestRegressor(
-            n_estimators=n_estimators, random_state=random_state, max_depth=8
-        )
-        self._is_fitted = False
+    """
+    이름은 기존 인터페이스(quiet_index_service.py 등)와의 호환을 위해
+    유지하지만, 내부적으로는 머신러닝 모델이 아니라 위에서 설명한
+    로그 스케일 캘리브레이션 공식을 사용합니다.
+    """
 
-    def _build_features(
-        self,
-        population: int,
-        area_m2: float,
-        category: str,
-        hour: int,
-        is_weekend: bool,
-    ) -> np.ndarray:
-        density = compute_density(population, area_m2)
-        return np.array([[
-            population,
-            area_m2,
-            _category_code(category),
-            hour,
-            int(is_weekend),
-            density,
-        ]])
-
-    def fit_synthetic(self, n_samples: int = 4000, seed: int = 42) -> None:
+    def fit_synthetic(self, *args, **kwargs) -> None:
         """
-        합성 데이터로 초기 모델을 학습합니다.
-        규칙: 혼잡도 = f(밀도) + 약간의 잡음, 카테고리/시간대 영향 소폭 반영.
-        실제 데이터가 쌓이면 이 메서드 대신 fit()을 실 데이터로 호출하세요.
+        더 이상 학습이 필요 없는 구조라 아무 일도 하지 않습니다.
+        기존 호출부(quiet_index_service.py의 초기화 코드)를 안 고쳐도
+        되도록 시그니처만 남겨둡니다.
         """
-        rng = np.random.default_rng(seed)
-        categories = list(CATEGORY_CODES.keys())
+        pass
 
-        rows = []
-        targets = []
-        for _ in range(n_samples):
-            category = rng.choice(categories)
-            area = rng.uniform(500, 200000)
-            hour = int(rng.integers(6, 23))
-            is_weekend = bool(rng.integers(0, 2))
-
-            # 인구는 면적에 어느 정도 비례하되 랜덤성을 부여
-            population = max(0, int(rng.normal(area * 0.02, area * 0.01)))
-
-            density = compute_density(population, area)
-
-            # 혼잡도 라벨(0~100): 밀도가 높을수록, 피크 시간대일수록, 주말일수록 상승
-            peak_bonus = 15 if hour in (11, 12, 13, 14, 15, 16, 17) else 0
-            weekend_bonus = 10 if is_weekend else 0
-            raw_score = density * 40 + peak_bonus + weekend_bonus
-            noise = rng.normal(0, 5)
-            congestion = float(np.clip(raw_score + noise, 0, 100))
-
-            rows.append([
-                population, area, CATEGORY_CODES[category], hour, int(is_weekend), density
-            ])
-            targets.append(congestion)
-
-        X = np.array(rows)
-        y = np.array(targets)
-        self.model.fit(X, y)
-        self._is_fitted = True
-
-    def fit(self, X: np.ndarray, y: np.ndarray) -> None:
-        """실 데이터로 학습할 때 사용 (X: 피처 행렬, y: 실측 혼잡도/설문 기반 라벨)."""
-        self.model.fit(X, y)
-        self._is_fitted = True
+    def fit(self, *args, **kwargs) -> None:
+        """위와 동일한 이유로 아무 일도 하지 않습니다."""
+        pass
 
     def predict_quiet_index(
         self,
@@ -108,10 +77,16 @@ class QuietIndexModel:
         hour: int,
         is_weekend: bool,
     ) -> float:
-        if not self._is_fitted:
-            self.fit_synthetic()
-        X = self._build_features(population, area_m2, category, hour, is_weekend)
-        congestion = float(self.model.predict(X)[0])
-        congestion = float(np.clip(congestion, 0, 100))
+        density = compute_density(population, area_m2)
+        log_density = math.log(density + 0.0001)
+
+        # 실측 로그밀도 범위를 0~100 혼잡도로 늘림
+        span = _LOG_DENSITY_MAX - _LOG_DENSITY_MIN
+        if span <= 0:
+            congestion = 50.0
+        else:
+            congestion = (log_density - _LOG_DENSITY_MIN) / span * 100
+            congestion = max(0.0, min(100.0, congestion))
+
         quiet_index = 100 - congestion
         return round(quiet_index, 1)
