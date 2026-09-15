@@ -27,18 +27,23 @@ MODE_LABELS = {
 MODE_ORDER = ["COZY", "NATURAL", "URBAN", "VINTAGE", "EXOTIC", "VIBRANT", "SENSORY", "TRANQUIL"]
 
 
-def _poi_vector(poi: POI, quiet_index: float) -> list[float]:
+def _poi_vector(poi: POI) -> list[float]:
     """
-    대체지 유사도 판단에 쓰이는 벡터.
-    [고요지수, 카테고리코드, 식생점수] +
+    대체지 "분위기" 유사도 판단에 쓰이는 벡터.
+    [카테고리코드, 식생점수] +
     [COZY, NATURAL, URBAN, VINTAGE, EXOTIC, VIBRANT, SENSORY, TRANQUIL] 적합도(8개)
+
+    고요지수는 여기서 제외한다 — 방향성 없는 유클리드 거리에 넣으면
+    "target과 고요지수가 다를수록 벌점"이 되어, 확실히 더 조용한 후보가
+    오히려 낮은 점수를 받는 버그가 있었다. 고요지수 개선폭은
+    recommend_alternatives에서 별도의 방향성 있는 보너스로 처리한다.
+    (2026-09-15 수정)
 
     모드 적합도를 추가한 이유: 카테고리만 보면 "자연공원류"로 비슷해 보여도
     실제 분위기(아늑함/활기참 등)는 다를 수 있어서
     (2026-09 팀 확정 — 여행감성 8종 최종 반영)
     """
     base = [
-        quiet_index,
         CATEGORY_CODES.get(poi.category, -1),
         poi.vegetation_score,
     ]
@@ -95,6 +100,7 @@ def recommend_alternatives(
     k: int = 3,
     max_distance_km: float = 3.0,
     distance_weight: float = 0.3,
+    quiet_weight: float = 0.3,
     exclude_poi_ids: set[str] | None = None,
 ) -> list[dict]:
     
@@ -123,8 +129,8 @@ def recommend_alternatives(
     if not filtered:
         return []
 
-    target_vec = np.array([_poi_vector(target_poi, target_quiet_index)])
-    candidate_vecs = np.array([_poi_vector(poi, qi) for poi, qi, _ in filtered])
+    target_vec = np.array([_poi_vector(target_poi)])
+    candidate_vecs = np.array([_poi_vector(poi) for poi, qi, _ in filtered])
 
     # 스케일이 다른 피처(고요지수 0~100, 카테고리 코드 등)가 거리 계산을
     # 지배하지 않도록 타깃+후보 벡터를 함께 min-max 정규화한다.
@@ -141,14 +147,32 @@ def recommend_alternatives(
     distances, indices = nn.kneighbors(target_vec)
 
     max_vec_dist = float(distances.max()) or 1.0
-    max_geo_dist = max(d for _, _, d in filtered) or 1.0
+
+    # quiet_index는 로그밀도 기반 정규화 스케일이라 값 간격이 균일하지 않다.
+    # 산술 차이(quiet_gain)를 그대로 쓰면 후보군 내 극단값 하나가 분모를 독점해
+    # 나머지가 다 눌리므로, filtered 후보군 내에서의 순위(percentile rank,
+    # 동점은 평균 순위 처리)로 바꾼다. (2026-09-15)
+    qi_values = [qi for _, qi, _ in filtered]
+    n_filtered = len(qi_values)
+    if n_filtered > 1:
+        quiet_percentiles = []
+        for v in qi_values:
+            less = sum(1 for x in qi_values if x < v)
+            equal = sum(1 for x in qi_values if x == v)
+            rank = less + (equal - 1) / 2  # 동점은 평균 순위
+            quiet_percentiles.append(rank / (n_filtered - 1))
+    else:
+        quiet_percentiles = [1.0]
 
     results = []
     for vec_dist, idx in zip(distances[0], indices[0]):
         poi, qi, geo_dist = filtered[idx]
         vec_sim_score = 1 - (vec_dist / max_vec_dist)  # 가까울수록 1에 근접
-        geo_penalty = (geo_dist / max_geo_dist) * distance_weight
-        final_score = round(max(0.0, vec_sim_score - geo_penalty), 3)
+        # 거리 페널티도 filtered 내 최대값이 아니라 고정 상한(max_distance_km)을
+        # 분모로 써서, 후보 하나가 우연히 멀다고 나머지가 유리해지는 걸 막는다.
+        geo_penalty = (geo_dist / max_distance_km) * distance_weight
+        quiet_bonus = quiet_percentiles[idx] * quiet_weight
+        final_score = round(min(1.0, max(0.0, vec_sim_score - geo_penalty + quiet_bonus)), 3)
         results.append({
             "poi_id": poi.poi_id,
             "name": poi.name,
