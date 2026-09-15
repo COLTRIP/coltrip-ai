@@ -146,7 +146,13 @@ def recommend_alternatives(
     nn.fit(candidate_vecs)
     distances, indices = nn.kneighbors(target_vec)
 
-    max_vec_dist = float(distances.max()) or 1.0
+    # vec_sim_score의 분모를 "이번에 뽑힌 k개 후보 중 최댓값"으로 쓰면,
+    # k개 중 벡터상 가장 먼 하나는 절대적 차이와 무관하게 항상 vec_sim_score=0이
+    # 되는 구조적 문제가 있었다(quiet_gain/geo_penalty에서 이미 고친 것과 동일한
+    # 패턴). 벡터가 이미 [0,1]로 min-max 정규화돼 있으므로, D차원 정규화 공간에서
+    # 이론상 가능한 최대 거리 sqrt(D)를 고정 분모로 쓴다. (2026-09-15)
+    vec_dim = candidate_vecs.shape[1]
+    max_possible_vec_dist = np.sqrt(vec_dim)
 
     # quiet_index는 로그밀도 기반 정규화 스케일이라 값 간격이 균일하지 않다.
     # 산술 차이(quiet_gain)를 그대로 쓰면 후보군 내 극단값 하나가 분모를 독점해
@@ -167,7 +173,7 @@ def recommend_alternatives(
     results = []
     for vec_dist, idx in zip(distances[0], indices[0]):
         poi, qi, geo_dist = filtered[idx]
-        vec_sim_score = 1 - (vec_dist / max_vec_dist)  # 가까울수록 1에 근접
+        vec_sim_score = 1 - (vec_dist / max_possible_vec_dist)  # 가까울수록 1에 근접, 고정 분모
         # 거리 페널티도 filtered 내 최대값이 아니라 고정 상한(max_distance_km)을
         # 분모로 써서, 후보 하나가 우연히 멀다고 나머지가 유리해지는 걸 막는다.
         geo_penalty = (geo_dist / max_distance_km) * distance_weight
