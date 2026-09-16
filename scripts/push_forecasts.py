@@ -80,30 +80,47 @@ def find_cnctr_for_poi(poi_name: str, name_to_cnctr: dict) -> dict[str, float] |
 
 def build_forecasts_for_poi(poi_id: str, dates: dict[str, float]) -> list[dict]:
     """
-    이 POI의 향후 FORECAST_DAYS일치 시간별(24슬롯) 예측 레코드를 만듭니다.
-    quietIndex는 아직 계산 안 하고, 원본 cnctrRate만 담아둡니다
-    (날짜별로 모은 뒤 min-max 정규화로 나중에 한꺼번에 계산할 것이라).
+    이 POI의 향후 FORECAST_DAYS일치 날짜별(하루 대표 1건) 예측 레코드를
+    만듭니다. 백엔드 targetAt 형식(시각 포함 ISO)은 유지하되, 프론트가
+    날짜 단위로만 표시하기로 합의되어 하루 24슬롯 대신 대표 시각 하나만
+    보냅니다.
+
+    대표 시각은 평소 15시로 고정하되, 오늘(스크립트 실행일) 것만큼은
+    "생성 시각 이후"여야 한다는 백엔드 제약 때문에, 이미 15시를 지났으면
+    지금부터 가장 가까운 미래 정시를 대신 씁니다.
+
+    quietIndex는 아직 계산 안 하고, 원본 cnctrRate만 담아둡니다.
     """
     now_kst = datetime.now(KST)
-    start_hour = now_kst.replace(minute=0, second=0, microsecond=0)
+    today = now_kst.date()
+    REPRESENTATIVE_HOUR = 15
 
     records = []
-    for h in range(FORECAST_DAYS * 24 + 1):
-        target_at = start_hour + timedelta(hours=h)
-        date_key = target_at.strftime("%Y%m%d")
+    for d in range(FORECAST_DAYS + 1):
+        target_date = today + timedelta(days=d)
+        date_key = target_date.strftime("%Y%m%d")
         cnctr_rate = dates.get(date_key)
         if cnctr_rate is None:
             continue
 
+        target_at = datetime.combine(
+            target_date, datetime.min.time(), tzinfo=KST
+        ) + timedelta(hours=REPRESENTATIVE_HOUR)
+
+        # 오늘 것인데 대표 시각(15시)이 이미 지났으면, 지금부터 가장 가까운
+        # 미래 정시로 대체 (백엔드가 "생성 시각 이후"만 허용하기 때문)
+        if d == 0 and target_at <= now_kst:
+            target_at = now_kst.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+
         valid_until = target_at + timedelta(hours=1)
+
         records.append({
             "tourApiContentId": poi_id,
             "targetAt": target_at.isoformat(timespec="seconds"),
             "validUntil": valid_until.isoformat(timespec="seconds"),
-            "_cnctr_rate": cnctr_rate,  # 임시 필드, 정규화 후 제거
+            "_cnctr_rate": cnctr_rate,
         })
     return records
-
 
 def normalize_quiet_index_per_date(all_forecasts: list[dict]) -> None:
     """
@@ -119,7 +136,7 @@ def normalize_quiet_index_per_date(all_forecasts: list[dict]) -> None:
     """
     by_date = defaultdict(list)
     for f in all_forecasts:
-        date_key = f["targetAt"][:10]  # "2026-09-14T21:00:00+09:00" -> "2026-09-14"
+        date_key = f["targetAt"][:10]  # "2026-09-17T15:00:00+09:00" -> "2026-09-17"
         by_date[date_key].append(f)
 
     for date_key, records in sorted(by_date.items()):
