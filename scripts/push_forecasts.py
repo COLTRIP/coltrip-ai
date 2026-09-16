@@ -35,9 +35,9 @@ import json
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-
+import math
 import httpx
-
+from app.data.skt_congestion import SKT_VERIFIED_POIS, fetch_skt_population
 from app.data.loader import RealDataLoader
 
 BACKEND_URL = "https://api.coltrip.co.kr/api/internal/quiet-index/forecasts"
@@ -47,6 +47,10 @@ CNCTR_DATA_PATH = Path("app/data/cnctr_rate_data.json")
 FORECAST_DAYS = 7  # 백엔드 현재 정책(7일). 나중에 30일로 늘어나면 이 값만 변경.
 KST = timezone(timedelta(hours=9))
 
+
+# app/models/quiet_index_model.py와 동일한 값 (일관성 유지)
+_SKT_LOG_MIN = -6.8929 - (0.9813 - (-6.8929)) * 0.30
+_SKT_LOG_MAX = 0.9813 + (0.9813 - (-6.8929)) * 0.30
 
 def build_name_to_cnctr() -> dict[str, dict[str, float]]:
     """tAtsNm(부분 매칭용) -> {YYYYMMDD: cnctrRate} 형태로 정리합니다."""
@@ -134,6 +138,44 @@ def normalize_quiet_index_per_date(all_forecasts: list[dict]) -> None:
                 percentile = (n - 1 - rank) / (n - 1) * 100
                 r["quietIndex"] = round(percentile, 2)
 
+def blend_today_with_skt(all_forecasts: list[dict], pois_by_id: dict) -> None:
+    """
+    SKT 실시간 대상(18곳)에 한해, '오늘' 날짜의 24개 시간 슬롯만
+    TourAPI 집중률 기반 quietIndex와 SKT 실시간 기반 quietIndex를
+    평균 내어 보정합니다. SKT 값은 저장하지 않고 이 계산에만 즉시
+    사용하고 버립니다 (SK 약관 확인 결과 반영, 2026-09-16).
+    """
+    today_str = datetime.now(KST).strftime("%Y-%m-%d")
+    blended_count = 0
+
+    for f in all_forecasts:
+        if not f["targetAt"].startswith(today_str):
+            continue
+        poi_id = f["tourApiContentId"]
+        if poi_id not in SKT_VERIFIED_POIS:
+            continue
+
+        poi = pois_by_id.get(poi_id)
+        if poi is None:
+            continue
+
+        skt_population = fetch_skt_population(poi_id, poi.area_m2)
+        if skt_population is None:
+            continue  # 야간이거나 SKT 호출 실패 시 원래 값 그대로 둠
+
+        # SKT population -> 같은 로그밀도 스케일로 변환해서 quietIndex 계산
+        # (app/models/quiet_index_model.py와 동일한 상수 사용)
+        density = skt_population / poi.area_m2 if poi.area_m2 > 0 else 0
+        log_density = math.log(density + 0.0001)
+        span = _SKT_LOG_MAX - _SKT_LOG_MIN
+        congestion = max(0.0, min(100.0, (log_density - _SKT_LOG_MIN) / span * 100)) if span > 0 else 50.0
+        skt_quiet_index = round(100 - congestion, 2)
+
+        f["quietIndex"] = round((f["quietIndex"] + skt_quiet_index) / 2, 2)
+        blended_count += 1
+
+    print(f"SKT 실시간 값과 오늘자 예측 결합: {blended_count}건\n")
+
 def main():
     name_to_cnctr = build_name_to_cnctr()
     loader = RealDataLoader()
@@ -153,6 +195,9 @@ def main():
 
     normalize_quiet_index_per_date(all_forecasts)
     print()
+
+    pois_by_id = {p.poi_id: p for p in pois}
+    blend_today_with_skt(all_forecasts, pois_by_id)
 
     generated_at = datetime.now(KST).isoformat(timespec="seconds")
     client = httpx.Client(timeout=30)
