@@ -54,11 +54,18 @@ def _poi_vector(poi: POI) -> list[float]:
 def _generate_recommend_reason(
     target_poi: POI, target_qi: float, candidate: POI, candidate_qi: float, distance_km: float,
 ) -> str:
-    """대체지 추천 이유를 자연어 한 문장으로 생성합니다."""
+    """
+    대체지 추천 이유를 자연어 한 문장으로 생성합니다.
+
+    2026-09-16 수정: 예전엔 문구 조각을 공백으로 그냥 이어붙여서
+    "더 한적하고 비슷하게 감각적인 걸어서 이동 가능한 산업관광예요"처럼
+    형용사가 3~4개 나열되며 어색했음. 조각 개수에 따라 접속사(~하고,
+    ~하면서)를 자연스럽게 넣고, 카테고리명을 그대로 문장 끝에 붙이는
+    대신 "곳/장소"로 마무리하도록 수정.
+    """
     target_modes = get_mode_fit_vector(target_poi.description)
     candidate_modes = get_mode_fit_vector(candidate.description)
 
-    # 두 장소 모두에서 점수가 높은 무드(공통 분위기)를 찾음
     combined = [(MODE_ORDER[i], target_modes[i] * candidate_modes[i]) for i in range(len(MODE_ORDER))]
     top_mode_code, top_mode_score = max(combined, key=lambda x: x[1])
     mood_phrase = MODE_LABELS[top_mode_code] if top_mode_score > 0.1 else None
@@ -66,18 +73,25 @@ def _generate_recommend_reason(
     qi_diff = candidate_qi - target_qi
     quiet_phrase = "훨씬 한적하고" if qi_diff >= 20 else "더 한적하고" if qi_diff >= 5 else None
 
-    parts = []
+    clauses = []
     if quiet_phrase:
-        parts.append(quiet_phrase)
+        clauses.append(quiet_phrase)
     if mood_phrase:
-        parts.append(f"비슷하게 {mood_phrase}")
-    if distance_km <= 1.0:
-        parts.append("걸어서 이동 가능한")
+        clauses.append(f"비슷하게 {mood_phrase} 분위기의")
+    walkable = distance_km <= 1.0
 
-    if not parts:
-        return f"{candidate.category} 대체 장소예요"
+    if not clauses and not walkable:
+        return f"{candidate.name}은 대체 장소로 추천할 만한 곳이에요"
 
-    return " ".join(parts) + f" {candidate.category}예요"
+    # 형용사절들을 자연스럽게 이어붙임: "훨씬 한적하고, 비슷하게 고요한 분위기의"
+    lead = ", ".join(clauses) if clauses else ""
+
+    if walkable:
+        if lead:
+            return f"{lead} 곳이면서, 걸어서도 갈 수 있는 거리예요"
+        return "걸어서 갈 수 있는 가까운 거리예요"
+
+    return f"{lead} 곳이에요"
 
 
 def should_trigger_nudge(quiet_index: float, baseline_quiet_index: float | None = None) -> bool:
