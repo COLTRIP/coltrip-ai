@@ -22,7 +22,7 @@ SKT 지오비전 퍼즐 API 연동 (실시간 장소 혼잡도).
 from __future__ import annotations
 
 import time
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 import httpx
 
@@ -67,7 +67,11 @@ def is_skt_covered(poi_id: str) -> bool:
 
 
 def _is_active_hours() -> bool:
-    return ACTIVE_HOURS_START <= datetime.now().hour < ACTIVE_HOURS_END
+    # 서버가 UTC로 동작하므로, KST로 명시적으로 변환해서 판단해야 함.
+    # datetime.now()(서버 로컬=UTC)를 그대로 쓰면 활동시간 판정이 9시간
+    # 어긋나는 버그가 있었음 (2026-09-19, 스케줄러 자동화 도입 후 발견).
+    kst = timezone(timedelta(hours=9))
+    return ACTIVE_HOURS_START <= datetime.now(kst).hour < ACTIVE_HOURS_END
 
 
 def fetch_skt_population(poi_id: str, area_m2: float) -> int | None:
