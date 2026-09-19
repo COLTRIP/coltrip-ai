@@ -57,12 +57,19 @@ def _generate_recommend_reason(
     """
     대체지 추천 이유를 자연어 한 문장으로 생성합니다.
 
-    2026-09-16 수정: 예전엔 문구 조각을 공백으로 그냥 이어붙여서
-    "더 한적하고 비슷하게 감각적인 걸어서 이동 가능한 산업관광예요"처럼
-    형용사가 3~4개 나열되며 어색했음. 조각 개수에 따라 접속사(~하고,
-    ~하면서)를 자연스럽게 넣고, 카테고리명을 그대로 문장 끝에 붙이는
-    대신 "곳/장소"로 마무리하도록 수정.
+    2026-09-16 수정: 문구 조각을 공백으로 그냥 이어붙여서 형용사가
+    나열되며 어색했던 문제를 접속어로 수정.
+
+    2026-09-19 재작성: 위 방식도 매번 "훨씬 한적하고, 비슷하게 OO한 분위기의
+    곳이에요"라는 똑같은 틀만 반복해 기계적으로 느껴졌음. LLM 호출은 매
+    요청마다 지연시간·비용이 들어 즉시 응답이 중요한 이 기능엔 안 맞다고
+    판단, 대신 각 조각(고요함 정도/무드/거리)마다 여러 자연스러운 표현을
+    미리 준비해두고 무작위로 골라 조합하는 방식으로 다양성을 확보함.
+    poi_id 조합을 시드로 써서, 같은 두 장소끼리는 항상 같은 문장이 나오게
+    해 재현성은 유지함(새로고침할 때마다 문구가 바뀌면 오히려 어색함).
     """
+    import random
+
     target_modes = get_mode_fit_vector(target_poi.description)
     candidate_modes = get_mode_fit_vector(candidate.description)
 
@@ -71,27 +78,59 @@ def _generate_recommend_reason(
     mood_phrase = MODE_LABELS[top_mode_code] if top_mode_score > 0.1 else None
 
     qi_diff = candidate_qi - target_qi
-    quiet_phrase = "훨씬 한적하고" if qi_diff >= 20 else "더 한적하고" if qi_diff >= 5 else None
 
-    clauses = []
-    if quiet_phrase:
-        clauses.append(quiet_phrase)
+    # 같은 대체지 쌍(target, candidate)이면 항상 같은 문장이 나오도록 고정 시드 사용
+    rng = random.Random(f"{target_poi.poi_id}-{candidate.poi_id}")
+
+    QUIET_PHRASES_HIGH = [  # qi_diff >= 20
+        "훨씬 한적하고", "사람이 확실히 적고", "붐비지 않고 여유롭고", "눈에 띄게 조용하고",
+    ]
+    QUIET_PHRASES_MID = [  # qi_diff >= 5
+        "더 한적하고", "조금 더 여유롭고", "상대적으로 조용하고", "붐빔이 덜하고",
+    ]
+    MOOD_TEMPLATES = [
+        "비슷하게 {mood} 분위기의", "{mood} 느낌이 닮아 있는", "{mood} 매력을 함께 지닌",
+        "{mood} 분위기가 이어지는",
+    ]
+    WALK_ALONE_PHRASES = [
+        "걸어서 갈 수 있는 가까운 거리예요", "도보로 이동 가능한 가까운 곳이에요",
+        "멀지 않아 걸어서 갈 만해요",
+    ]
+    WALK_WITH_LEAD_PHRASES = [
+        "곳이면서, 걸어서도 갈 수 있는 거리예요", "곳이고, 도보로도 충분히 갈 수 있어요",
+        "곳인데 걸어서 이동하기도 좋아요",
+    ]
+    PLAIN_ENDING = ["곳이에요", "장소예요", "곳으로 추천드려요"]
+    FALLBACK_PHRASES = [
+        "{name}은 대체 장소로 추천할 만한 곳이에요",
+        "{name}도 한번 가보시면 좋을 것 같아요",
+        "{name}을 대안으로 고려해보세요",
+    ]
+
+    quiet_phrase = None
+    if qi_diff >= 20:
+        quiet_phrase = rng.choice(QUIET_PHRASES_HIGH)
+    elif qi_diff >= 5:
+        quiet_phrase = rng.choice(QUIET_PHRASES_MID)
+
+    mood_clause = None
     if mood_phrase:
-        clauses.append(f"비슷하게 {mood_phrase} 분위기의")
+        mood_clause = rng.choice(MOOD_TEMPLATES).format(mood=mood_phrase)
+
+    clauses = [c for c in [quiet_phrase, mood_clause] if c]
     walkable = distance_km <= 1.0
 
     if not clauses and not walkable:
-        return f"{candidate.name}은 대체 장소로 추천할 만한 곳이에요"
+        return rng.choice(FALLBACK_PHRASES).format(name=candidate.name)
 
-    # 형용사절들을 자연스럽게 이어붙임: "훨씬 한적하고, 비슷하게 고요한 분위기의"
     lead = ", ".join(clauses) if clauses else ""
 
     if walkable:
         if lead:
-            return f"{lead} 곳이면서, 걸어서도 갈 수 있는 거리예요"
-        return "걸어서 갈 수 있는 가까운 거리예요"
+            return f"{lead} {rng.choice(WALK_WITH_LEAD_PHRASES)}"
+        return rng.choice(WALK_ALONE_PHRASES)
 
-    return f"{lead} 곳이에요"
+    return f"{lead} {rng.choice(PLAIN_ENDING)}"
 
 
 def should_trigger_nudge(quiet_index: float, baseline_quiet_index: float | None = None) -> bool:
