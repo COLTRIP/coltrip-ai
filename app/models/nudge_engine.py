@@ -83,7 +83,7 @@ def _generate_recommend_reason(
     rng = random.Random(f"{target_poi.poi_id}-{candidate.poi_id}")
 
     QUIET_PHRASES_HIGH = [  # qi_diff >= 20
-        "훨씬 한적하고", "사람이 확실히 적고", "붐비지 않고 여유롭고", "눈에 띄게 조용하고",
+        "훨씬 한적하고", "사람이 적고", "붐비지 않고 여유롭고", "눈에 띄게 조용하고",
     ]
     QUIET_PHRASES_MID = [  # qi_diff >= 5
         "더 한적하고", "조금 더 여유롭고", "상대적으로 조용하고", "붐빔이 덜하고",
@@ -93,18 +93,18 @@ def _generate_recommend_reason(
         "{mood} 분위기가 이어지는",
     ]
     WALK_ALONE_PHRASES = [
-        "걸어서 갈 수 있는 가까운 거리예요", "도보로 이동 가능한 가까운 곳이에요",
+        "걸어서 갈 수 있는 가까운 거리에요", "도보로 이동 가능한 가까운 곳이에요",
         "멀지 않아 걸어서 갈 만해요",
     ]
     WALK_WITH_LEAD_PHRASES = [
-        "곳이면서 걸어서도 갈 수 있는 거리예요", "곳이고 도보로도 충분히 갈 수 있어요",
+        "곳이면서 걸어서도 갈 수 있는 거리에요", "곳이고 도보로도 충분히 갈 수 있어요",
         "곳인데 걸어서 이동하기도 좋아요",
     ]
-    PLAIN_ENDING = ["곳이에요", "장소예요", "곳으로 추천드려요"]
+    PLAIN_ENDING = ["곳이에요", "장소에요", "곳으로 추천드려요"]
     FALLBACK_PHRASES = [
-        "{name}은 대체 장소로 추천할 만한 곳이에요",
+        "{name}은 대체 장소로 추천할 만한 곳에요",
         "{name}도 한번 가보시면 좋을 것 같아요",
-        "{name}을 대안으로 고려해보세요",
+        "{name}을 대안으로 고려해 보세요",
     ]
 
     quiet_phrase = None
