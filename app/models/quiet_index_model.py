@@ -37,7 +37,8 @@ import math
 #  자연스럽게 분포하고, 진짜 극단적인 값이 나올 때만 0/100에 가까워지도록 함)
 _OBSERVED_LOG_MIN = -6.8929
 _OBSERVED_LOG_MAX = 0.9813
-_PADDING_RATIO = 0.30
+_PADDING_RATIO = 0.10
+_SCORE_OFFSET = 20.0
 _span = _OBSERVED_LOG_MAX - _OBSERVED_LOG_MIN
 _LOG_DENSITY_MIN = _OBSERVED_LOG_MIN - _span * _PADDING_RATIO
 _LOG_DENSITY_MAX = _OBSERVED_LOG_MAX + _span * _PADDING_RATIO
@@ -89,4 +90,9 @@ class QuietIndexModel:
             congestion = max(0.0, min(100.0, congestion))
 
         quiet_index = 100 - congestion
+        # 전반적으로 점수가 너무 낮게 느껴진다는 피드백 반영, 전체를 위로
+        # 밀어올리는 보정값 추가 (2026-09-16). 값 자체의 "정확도"보다는
+        # 사용자가 체감하는 절대적인 느낌(숫자가 너무 낮아 보이지 않게)을
+        # 맞추기 위한 주관적 보정.
+        quiet_index = min(100.0, quiet_index + _SCORE_OFFSET)
         return round(quiet_index, 1)
