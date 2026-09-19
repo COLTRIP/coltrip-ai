@@ -123,7 +123,7 @@ def _generate_recommend_reason(
     if not clauses and not walkable:
         return rng.choice(FALLBACK_PHRASES).format(name=candidate.name)
 
-    lead = ", ".join(clauses) if clauses else ""
+    lead = " ".join(clauses) if clauses else ""
 
     if walkable:
         if lead:
