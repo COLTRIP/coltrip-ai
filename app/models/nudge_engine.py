@@ -172,7 +172,9 @@ def recommend_alternatives(
         if exclude_poi_ids and poi.poi_id in exclude_poi_ids:
             continue
         if qi <= target_quiet_index:
-            # 더 한적한 곳만 추천 (문서: '고요 지수'가 높은 곳을 최우선 필터링)
+            continue
+        if qi < settings.QUIET_INDEX_ALERT_THRESHOLD:
+            # 상대적으로 나아도, 절대 기준(40점) 미만이면 추천 후보에서 제외
             continue
         dist_km = haversine_km(target_poi.lat, target_poi.lng, poi.lat, poi.lng)
         if dist_km > max_distance_km:
