@@ -4695,5 +4695,13 @@
       "SENSORY"
     ],
     "excluded": false
+  },
+  "4106709": {
+    "description": "서면 골목에 자리한 아늑한 분위기의 카페로, 조용히 머물며 여유를 즐기기 좋다.",
+    "modes": [
+      "COZY",
+      "TRANQUIL"
+    ],
+    "excluded": false
   }
 }
