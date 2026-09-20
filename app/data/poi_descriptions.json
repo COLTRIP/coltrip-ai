@@ -4703,5 +4703,21 @@
       "TRANQUIL"
     ],
     "excluded": false
+  },
+  "4108677": {
+    "description": "주례동 주택가에 자리한 조용한 동네 도서관으로, 차분하게 책을 읽으며 시간을 보내기 좋다.",
+    "modes": [
+      "TRANQUIL",
+      "COZY"
+    ],
+    "excluded": false
+  },
+  "4113684": {
+    "description": "영도 바닷가 근처 골목에 자리한 카페로, 한적하게 머물며 여유를 즐기기 좋다.",
+    "modes": [
+      "COZY",
+      "TRANQUIL"
+    ],
+    "excluded": false
   }
 }
